@@ -1,0 +1,23 @@
+# Design exports 
+design
+docs
+
+# Dependencies and build output
+node_modules
+dist
+coverage
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
