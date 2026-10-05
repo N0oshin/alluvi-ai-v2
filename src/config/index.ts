@@ -1,5 +1,3 @@
-// The real configuration, built once at start-up.
-//
 // This is the only place in the codebase that reads process.env. Importing
 // this file loads .env (if present) and validates every variable; a missing
 // or invalid variable throws here, which stops the process before it does

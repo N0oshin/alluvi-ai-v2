@@ -1,5 +1,5 @@
 // Request id: every request gets a unique id, and every response carries it in
-// the X-Request-Id header (document 02 section 1). When a user reports a
+// the X-Request-Id header. When a user reports a
 // problem, that id finds the matching lines in the logs.
 
 import { randomUUID } from 'node:crypto';

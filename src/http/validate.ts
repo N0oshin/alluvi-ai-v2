@@ -44,8 +44,6 @@ function toDetails(issue: z.core.$ZodIssue): ErrorDetail[] {
   }
 }
 
-// <T> is explained in docs/typescript-notes.md entry 21: whatever type the
-// schema produces is the type this function returns.
 export function validate<T>(schema: z.ZodType<T>, value: unknown): T {
   // reportInput makes Zod include the offending value in each issue, which
   // toDetails uses to tell "missing" from "wrong type".

@@ -20,36 +20,30 @@ import { AppError } from './errors.js';
 export const DEFAULT_PAGE_LIMIT = 20;
 export const MAX_PAGE_LIMIT = 100;
 
-// The two query parameters every list endpoint accepts. They are spread into
-// the route's own schema, next to its other parameters:
-//   z.strictObject({ ...paginationFields, saved: z.boolean().optional() })
+// limit	Number of data items to return. Must be between 1 and 100, defaults to 20.
+//cursor	Text length of the token.
 export const paginationFields = {
-  // Query values always arrive as strings; z.coerce turns "50" into 50.
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(DEFAULT_PAGE_LIMIT),
   cursor: z.string().min(1).max(1024).optional(),
 };
 
-// The list envelope. <T> is the type of one item; see
-// docs/typescript-notes.md entry 22.
+// defines the exact shape and structure of the JSON response your server sends back to the client whenever they request a paginated list.
+//• <T>: This is a TypeScript Generic (a placeholder type). It means this pagination structure is reusable for anything.
+// If you are paginating a list of Users, it becomes Page<User>.
+// If you are paginating a list of Products, it becomes Page<Product>.
+
 export interface Page<T> {
   data: T[];
   page: {
-    // null on the last page.
     next_cursor: string | null;
     has_more: boolean;
   };
 }
 
-// Turns a position in a list (for example { logged_at, id } of the last item
-// sent) into the opaque string the client sees: JSON, then base64url, which
-// is base64 using only characters that are safe inside a URL.
 export function encodeCursor(position: unknown): string {
   return Buffer.from(JSON.stringify(position)).toString('base64url');
 }
 
-// The reverse of encodeCursor. A cursor comes from the client, so it is
-// treated like any other input: `schema` says what a position must look like,
-// and anything else is answered as 422 with the field `cursor`.
 export function decodeCursor<T>(cursor: string, schema: z.ZodType<T>): T {
   let position: unknown;
   try {

@@ -1,4 +1,3 @@
-// Environment configuration: the schema and the validator.
 //
 // Every environment variable the backend reads is described once in the schema
 // below. This file has no side effects (it does not touch process.env), so
@@ -7,18 +6,13 @@
 
 import { z } from 'zod';
 
-// The schema: one line per environment variable.
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-
   // Environment variables are always strings; z.coerce turns "3000" into 3000.
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 });
 
-// The TypeScript type of a validated config, derived from the schema so the
-// two can never drift apart. See docs/typescript-notes.md entry 12.
 export type Config = z.infer<typeof schema>;
 
 // Validates an environment-like object. Throws a readable error listing every

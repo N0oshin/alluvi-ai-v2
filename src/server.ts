@@ -1,5 +1,4 @@
-// Process entry point: builds the app and starts listening. Kept separate from
-// app.ts so that tests never open a port.
+// Process entry point: builds the app and starts listening.
 
 // Importing config validates the environment first. If a variable is missing
 // or invalid, this import throws and the process exits before anything starts.
@@ -7,8 +6,6 @@ import { config } from './config/index.js';
 import { buildApp } from './app.js';
 import { checkDatabase, pool } from './db/index.js';
 
-// The real dependencies. `{ checkDatabase }` is short for
-// `{ checkDatabase: checkDatabase }`.
 const app = buildApp({ checkDatabase });
 
 await app.listen({ port: config.PORT });
