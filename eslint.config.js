@@ -28,8 +28,9 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      // console.log is fine for now; a real logger replaces it in Phase 1.3.
-      'no-console': 'off',
+      // Application code logs through Fastify's logger (src/http/logging.ts).
+      // console is allowed only in scripts run by hand, such as src/db/check.ts.
+      'no-console': 'error',
     },
   },
 

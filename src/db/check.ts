@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- a script run by hand; its output is the point */
 // Connection check: runs one query against DATABASE_URL and prints the result.
 // Run with `npm run db:check`. Exits with an error if the database cannot be
 // reached or rejects the credentials.

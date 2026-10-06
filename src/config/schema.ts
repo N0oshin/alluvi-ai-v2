@@ -5,13 +5,35 @@
 // built in ./index.ts.
 
 import { z } from 'zod';
+import { LOG_LEVELS } from '../http/logging.js';
 
-const schema = z.object({
+const rawSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // Environment variables are always strings; z.coerce turns "3000" into 3000.
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // How much the app writes to its log. Optional: the default depends on
+  // NODE_ENV and is filled in below.
+  LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
 });
+
+// Detailed in development, nothing in tests, the useful lines in production.
+function defaultLogLevel(nodeEnv: 'development' | 'test' | 'production') {
+  switch (nodeEnv) {
+    case 'development':
+      return 'debug' as const;
+    case 'test':
+      return 'silent' as const;
+    case 'production':
+      return 'info' as const;
+  }
+}
+
+// `...data` copies every validated field; LOG_LEVEL is then set for sure.
+const schema = rawSchema.transform((data) => ({
+  ...data,
+  LOG_LEVEL: data.LOG_LEVEL ?? defaultLogLevel(data.NODE_ENV),
+}));
 
 export type Config = z.infer<typeof schema>;
 

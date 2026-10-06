@@ -7,7 +7,6 @@
 //   2. An error raised by Fastify itself (invalid JSON, body too large,
 //      wrong content type): translated to the matching code.
 //   3. Anything else (a bug, a database failure): sent as internal_error.
-//      The real message is logged, never sent, so nothing internal leaks.
 
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { AppError, ERROR_CODES, type ErrorCode } from './errors.js';
@@ -62,8 +61,9 @@ export function addErrorHandling(app: FastifyInstance): void {
 
     const code = codeForStatus(statusOf(error));
     if (code === 'internal_error') {
-      // Replaced by structured logging later in Phase 1.3.
-      console.error(`request ${request.id} failed:`, error);
+      // The stack trace goes to the log (with the request id attached by
+      // request.log) and never to the response.
+      request.log.error({ err: error }, 'request failed');
     }
     return sendError(reply, request.id, new AppError(code));
   });

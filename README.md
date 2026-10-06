@@ -50,6 +50,12 @@ The three `migrate` commands start working in Phase 1.4, when the Drizzle config
 
 Every variable is listed in `.env.example` and validated at start-up by `src/config/schema.ts`. A missing or invalid variable stops the process with a message naming each problem.
 
+## Logging
+
+The app writes one JSON log line per request and one per unexpected error, through Fastify's built-in Pino logger (`src/http/logging.ts`). `LOG_LEVEL` sets how much is written; it defaults to `debug` in development, `silent` in tests and `info` in production. In development the lines are made readable by `pino-pretty`.
+
+Log lines never contain request or response bodies, query strings, headers, tokens, emails, health values, message text or image URLs (document 03 section 4.4). Known-sensitive field names are replaced with `[Redacted]` as a safety net. Application code logs through `request.log` or `app.log`, never `console`.
+
 ## Secrets
 
 A secret is any value that gives access to something: the database password inside `DATABASE_URL`, and later API keys and token signing keys. The rules are the same in every environment:

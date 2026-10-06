@@ -5,14 +5,18 @@
 import { config } from './config/index.js';
 import { buildApp } from './app.js';
 import { checkDatabase, pool } from './db/index.js';
+import { loggerOptions } from './http/logging.js';
 
-const app = buildApp({ checkDatabase });
+const app = buildApp(
+  { checkDatabase },
+  { logger: loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }) },
+);
 
 await app.listen({ port: config.PORT });
-console.log(`alluvi-backend listening on port ${config.PORT}`);
+app.log.info({ port: config.PORT }, 'alluvi-backend listening');
 
 const shutdown = async (signal: string) => {
-  console.log(`received ${signal}, shutting down`);
+  app.log.info({ signal }, 'shutting down');
   // Stops accepting new requests and waits for the running ones to finish.
   await app.close();
   // Closes the database connections so the process can exit.

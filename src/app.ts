@@ -1,7 +1,8 @@
 // Builds the application without starting a network listener
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { addErrorHandling } from './http/error-handler.js';
+import { RequestLogController } from './http/logging.js';
 import { addRequestIdHeader, generateRequestId } from './http/request-id.js';
 import { healthRoutes, type HealthDependencies } from './routes/health.js';
 import { v1Routes } from './routes/v1.js';
@@ -10,8 +11,16 @@ import { v1Routes } from './routes/v1.js';
 // storage, email and so on).
 export type AppDependencies = HealthDependencies;
 
-export function buildApp(deps: AppDependencies): FastifyInstance {
-  const app = Fastify({ genReqId: generateRequestId });
+export interface AppOptions {
+  logger?: FastifyServerOptions['logger'];
+}
+
+export function buildApp(deps: AppDependencies, options: AppOptions = {}): FastifyInstance {
+  const app = Fastify({
+    genReqId: generateRequestId,
+    logger: options.logger ?? false,
+    logController: new RequestLogController(),
+  });
 
   addRequestIdHeader(app);
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
 import { AppError } from './errors.js';
 
@@ -55,8 +55,7 @@ describe('error envelope', () => {
   });
 
   it('hides the message of an unexpected error', async () => {
-    // Keeps the expected error out of the test output.
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // What gets logged instead is covered in logging.test.ts.
     const app = buildApp(deps);
     app.get('/bug', () => {
       throw new Error('password is hunter2');
@@ -67,7 +66,6 @@ describe('error envelope', () => {
     expect(response.statusCode).toBe(500);
     expect(response.json<ErrorBody>().error.code).toBe('internal_error');
     expect(response.body).not.toContain('hunter2');
-    expect(logged).toHaveBeenCalled();
     await app.close();
   });
 

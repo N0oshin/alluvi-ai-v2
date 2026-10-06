@@ -22,6 +22,17 @@ describe('loadConfig', () => {
     expect(config.PORT).toBe(3000);
   });
 
+  it('defaults LOG_LEVEL from NODE_ENV and accepts an explicit value', () => {
+    expect(loadConfig({ ...valid, NODE_ENV: 'development' }).LOG_LEVEL).toBe('debug');
+    expect(loadConfig({ ...valid, NODE_ENV: 'test' }).LOG_LEVEL).toBe('silent');
+    expect(loadConfig({ ...valid, NODE_ENV: 'production' }).LOG_LEVEL).toBe('info');
+    expect(loadConfig({ ...valid, LOG_LEVEL: 'warn' }).LOG_LEVEL).toBe('warn');
+  });
+
+  it('rejects an unknown LOG_LEVEL and names it', () => {
+    expect(() => loadConfig({ ...valid, LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
+  });
+
   it('rejects a missing required variable and names it', () => {
     const { DATABASE_URL: _url, ...missing } = valid;
     expect(() => loadConfig(missing)).toThrow(/DATABASE_URL/);
