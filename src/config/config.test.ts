@@ -33,6 +33,16 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...valid, LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
   });
 
+  it('accepts an optional TEST_DATABASE_URL, which may equal DATABASE_URL', () => {
+    expect(loadConfig(valid).TEST_DATABASE_URL).toBeUndefined();
+    expect(loadConfig({ ...valid, TEST_DATABASE_URL: valid.DATABASE_URL }).TEST_DATABASE_URL).toBe(
+      valid.DATABASE_URL,
+    );
+    expect(() => loadConfig({ ...valid, TEST_DATABASE_URL: 'not-a-url' })).toThrow(
+      /TEST_DATABASE_URL/,
+    );
+  });
+
   it('rejects a missing required variable and names it', () => {
     const { DATABASE_URL: _url, ...missing } = valid;
     expect(() => loadConfig(missing)).toThrow(/DATABASE_URL/);

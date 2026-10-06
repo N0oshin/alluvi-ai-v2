@@ -44,7 +44,15 @@ API and background workers for Alluvi AI. Node.js (TypeScript), PostgreSQL on Su
 | `npm run migrate`          | Applies pending migrations to the database            |
 | `npm run migrate:check`    | Verifies the migrations are consistent                |
 
-The three `migrate` commands start working in Phase 1.4, when the Drizzle config and the first schema file are added.
+## Database migrations
+
+Tables are described in TypeScript in `src/db/schema/` (one file per bounded context, re-exported by `index.ts`). `drizzle-kit`, configured in `drizzle.config.ts`, turns them into numbered SQL files in `src/db/migrations/`, which are committed with their snapshots and never edited afterwards.
+
+To change the database: edit a schema file, run `npm run migrate:generate`, read the generated `.sql` file, then run `npm run migrate` to apply it. `npm run migrate:check` verifies the migration folder is consistent. Only `migrate` connects to the database; the other two work from the files alone. `drizzle-kit push` is not used.
+
+## Tests
+
+`npm test` runs the unit tests on any machine. Tests that need PostgreSQL run against the database named by `TEST_DATABASE_URL`, which is migrated with the real migration files and has every table truncated before each test. When the variable is unset those tests are reported as skipped. Until production exists `TEST_DATABASE_URL` is the same Supabase project as `DATABASE_URL`, so every test run empties the development tables; before launch it moves to a separate project (Phase 13). Rows are created through the factories in `test/factories/`, one per table, never through raw inserts.
 
 ## Environment variables
 

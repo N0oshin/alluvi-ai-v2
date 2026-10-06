@@ -12,6 +12,11 @@ const rawSchema = z.object({
   // Environment variables are always strings; z.coerce turns "3000" into 3000.
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // The database the automated tests truncate and fill. Optional: without it
+  // the tests that need a database are skipped. Until production exists it
+  // may be the same value as DATABASE_URL (decided 2026-10-06); a separate
+  // database is a Phase 13 launch item. See test/db.ts.
+  TEST_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
   // How much the app writes to its log. Optional: the default depends on
   // NODE_ENV and is filled in below.
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),

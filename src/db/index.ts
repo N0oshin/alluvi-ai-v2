@@ -1,4 +1,4 @@
-// Drizzle client. Shared column helpers are added in Phase 1.4.
+// Drizzle client.
 //
 // `pool` is the raw connection pool from the `pg` driver: it keeps a few
 // connections to PostgreSQL open and hands them out per query. `db` is Drizzle
@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { config } from '../config/index.js';
+import * as schema from './schema/index.js';
 
 export const pool = new Pool({
   connectionString: config.DATABASE_URL,
@@ -17,7 +18,9 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
-export const db = drizzle({ client: pool });
+// `schema` lets queries refer to tables by name with full types. `casing`
+// must match drizzle.config.ts: camelCase properties, snake_case columns.
+export const db = drizzle({ client: pool, schema, casing: 'snake_case' });
 
 // Runs the cheapest possible query. Resolves if the database answers and
 // throws if it does not. Used by GET /health/ready.
