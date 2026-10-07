@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { fakeDeps } from '../../test/app-deps.js';
 import { buildApp } from '../app.js';
-import { memoryIdempotencyStore } from './idempotency.js';
 import { AppError } from './errors.js';
 
-const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
+const deps = fakeDeps();
 
 // The shape of the JSON body, so the tests can read its fields with types.
 interface ErrorBody {

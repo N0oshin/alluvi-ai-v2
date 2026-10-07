@@ -1,4 +1,4 @@
-// This file defines the schema for the `idempotency_keys`, `audit_log` and `outbox` tables, which are used for infrastructure purposes.
+// This file defines the schema for the `idempotency_keys`, `audit_log`, `outbox` and `rate_limit_counters` tables, which are used for infrastructure purposes.
 //
 // The `idempotency_keys` table stores responses for requests that include an
 // `Idempotency-Key` header. This allows clients to safely retry requests without
@@ -17,6 +17,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -93,5 +94,28 @@ export const outbox = pgTable(
     index('outbox_pending')
       .on(table.id)
       .where(sql`${table.publishedAt} is null`),
+  ],
+);
+
+// One counter per rate limit rule, per caller, per time window: "magic link
+// requests from this email address in the hour starting at 10:00". The hook
+// in src/http/rate-limit.ts adds one to the counter on every request and
+// refuses the request with 429 once the count passes the rule's limit.
+//
+// This table has no base columns on purpose: a counter is not an entity with
+// an identity and a history. The pair (key, window_start) is the primary key,
+// and that is what `insert ... on conflict do update` increments against.
+export const rateLimitCounters = pgTable(
+  'rate_limit_counters',
+  {
+    // '<rule name>:<who>', for example 'magic_link.email:ann@example.com'.
+    key: text().notNull(),
+    windowStart: instant().notNull(),
+    count: integer().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.key, table.windowStart] }),
+    // The cleanup job deletes windows that have ended.
+    index('rate_limit_counters_window_start').on(table.windowStart),
   ],
 );

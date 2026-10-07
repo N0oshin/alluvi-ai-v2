@@ -6,10 +6,15 @@ import { config } from './config/index.js';
 import { buildApp } from './app.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
+import { createRateLimitStore } from './db/rate-limit-store.js';
 import { loggerOptions } from './http/logging.js';
 
 const app = buildApp(
-  { checkDatabase, idempotencyStore: createIdempotencyStore(db) },
+  {
+    checkDatabase,
+    idempotencyStore: createIdempotencyStore(db),
+    rateLimitStore: createRateLimitStore(db),
+  },
   { logger: loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }) },
 );
 

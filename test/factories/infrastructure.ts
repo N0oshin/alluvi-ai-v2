@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
-import { auditLog, idempotencyKeys, outbox } from '../../src/db/schema/index.js';
+import { auditLog, idempotencyKeys, outbox, rateLimitCounters } from '../../src/db/schema/index.js';
 import { defineFactory, nextSequence } from './define.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,4 +34,11 @@ export const outboxEvent = defineFactory(outbox, () => ({
   aggregateType: 'meal',
   aggregateId: uuidv7(),
   payload: { sequence: nextSequence() },
+}));
+
+// A counter with one hit in the current minute.
+export const rateLimitCounter = defineFactory(rateLimitCounters, () => ({
+  key: `rule.${nextSequence()}:caller`,
+  windowStart: new Date(Math.floor(Date.now() / 60_000) * 60_000),
+  count: 1,
 }));

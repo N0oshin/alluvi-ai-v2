@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { fakeDeps } from '../../test/app-deps.js';
 import { buildApp } from '../app.js';
-import { memoryIdempotencyStore } from './idempotency.js';
 import { loggerOptions, pathOf, REDACT_PATHS } from './logging.js';
 
-const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
+const deps = fakeDeps();
 
 // Builds an app whose log lines are collected in an array instead of being
 // written to the terminal, so a test can read them back as objects.

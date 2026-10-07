@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { fakeDeps } from '../../test/app-deps.js';
 import { buildApp } from '../app.js';
 import { AppError, type ErrorDetail } from './errors.js';
 import {
@@ -22,7 +23,7 @@ const bodySchema = z.strictObject({ amount_ml: z.number().int().min(1) });
 // Builds the app with a creating POST that opts in and a plain POST that does
 // not. The handler is a spy so tests can count how often it really ran.
 function buildTestApp(store: IdempotencyStore = memoryIdempotencyStore()) {
-  const app = buildApp({ checkDatabase: () => Promise.resolve(), idempotencyStore: store });
+  const app = buildApp(fakeDeps({ idempotencyStore: store }));
   const handler = vi.fn((amountMl: number) => ({ id: randomUUID(), amount_ml: amountMl }));
 
   app.post('/water', { config: { idempotent: true } }, (request, reply) => {

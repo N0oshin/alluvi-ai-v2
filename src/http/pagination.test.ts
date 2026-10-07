@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { fakeDeps } from '../../test/app-deps.js';
 import { buildApp } from '../app.js';
-import { memoryIdempotencyStore } from './idempotency.js';
 import type { ErrorDetail } from './errors.js';
 import {
   buildPage,
@@ -12,7 +12,7 @@ import {
 } from './pagination.js';
 import { validate } from './validate.js';
 
-const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
+const deps = fakeDeps();
 
 interface ErrorBody {
   error: { code: string; details: ErrorDetail[] };

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { fakeDeps } from '../../test/app-deps.js';
 import { buildApp } from '../app.js';
-import { memoryIdempotencyStore } from './idempotency.js';
 
-const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
+const deps = fakeDeps();
 
 describe('X-Request-Id', () => {
   it('is returned on a successful response', async () => {

@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
-import { memoryIdempotencyStore } from '../http/idempotency.js';
+import { fakeDeps } from '../../test/app-deps.js';
 
 // Two fake database checks: one that succeeds and one that fails.
-const idempotencyStore = memoryIdempotencyStore();
-const databaseUp = { checkDatabase: () => Promise.resolve(), idempotencyStore };
-const databaseDown = {
+const databaseUp = fakeDeps();
+const databaseDown = fakeDeps({
   checkDatabase: () => Promise.reject(new Error('connection refused')),
-  idempotencyStore,
-};
+});
 
 describe('GET /health/live', () => {
   it('returns 200 even when the database is down', async () => {

@@ -29,7 +29,7 @@ describe('factories (build)', () => {
   });
 
   it('knows every table in the schema barrel', () => {
-    expect(allTables).toHaveLength(3);
+    expect(allTables).toHaveLength(4);
   });
 });
 
