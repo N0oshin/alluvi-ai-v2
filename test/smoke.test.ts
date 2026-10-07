@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
+import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 
 // A fake database check that always succeeds, so no real database is needed.
-const deps = { checkDatabase: () => Promise.resolve() };
+const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
 
 // app.inject() sends a request straight into the app, without opening a port.
 describe('app skeleton', () => {

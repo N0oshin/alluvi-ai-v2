@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { buildApp } from '../app.js';
+import { memoryIdempotencyStore } from './idempotency.js';
 import type { ErrorDetail } from './errors.js';
 import { canonicalTimeZone, localDateField, localDateIn, readTimeZone } from './time-zone.js';
 import { validate } from './validate.js';
 
-const deps = { checkDatabase: () => Promise.resolve() };
+const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
 
 interface ErrorBody {
   error: { code: string; details: ErrorDetail[] };

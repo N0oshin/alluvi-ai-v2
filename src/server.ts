@@ -4,11 +4,12 @@
 // or invalid, this import throws and the process exits before anything starts.
 import { config } from './config/index.js';
 import { buildApp } from './app.js';
-import { checkDatabase, pool } from './db/index.js';
+import { createIdempotencyStore } from './db/idempotency-store.js';
+import { checkDatabase, db, pool } from './db/index.js';
 import { loggerOptions } from './http/logging.js';
 
 const app = buildApp(
-  { checkDatabase },
+  { checkDatabase, idempotencyStore: createIdempotencyStore(db) },
   { logger: loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }) },
 );
 

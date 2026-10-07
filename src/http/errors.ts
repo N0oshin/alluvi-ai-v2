@@ -16,6 +16,10 @@ export const ERROR_CODES = {
   payload_too_large: { status: 413, message: 'The request is too large.' },
   unsupported_media_type: { status: 415, message: 'The content type is not supported.' },
   validation_failed: { status: 422, message: 'One or more fields are invalid.' },
+  idempotency_key_reused: {
+    status: 422,
+    message: 'This Idempotency-Key was already used for a different request.',
+  },
   upgrade_required: { status: 426, message: 'Update the app to continue.' },
   rate_limited: { status: 429, message: 'Too many requests. Try again later.' },
   internal_error: { status: 500, message: 'Something went wrong on our side.' },

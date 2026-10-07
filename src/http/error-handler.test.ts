@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
+import { memoryIdempotencyStore } from './idempotency.js';
 import { AppError } from './errors.js';
 
-const deps = { checkDatabase: () => Promise.resolve() };
+const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
 
 // The shape of the JSON body, so the tests can read its fields with types.
 interface ErrorBody {

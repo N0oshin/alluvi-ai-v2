@@ -10,7 +10,8 @@
 //   - It is migrated with the real files in src/db/migrations, never with
 //     drizzle-kit push, so the tests see exactly what production will.
 //   - Every table is truncated before each test. A test starts from nothing and
-//     creates what it needs through the factories (test/factories).
+//     creates what it needs through the factories (test/factories). Because
+//     of that, vitest.config.ts runs test files one at a time.
 //   - When TEST_DATABASE_URL is not set, database tests are skipped, not failed,
 //     so the unit tests run without any database.
 

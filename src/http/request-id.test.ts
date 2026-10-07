@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../app.js';
+import { memoryIdempotencyStore } from './idempotency.js';
 
-const deps = { checkDatabase: () => Promise.resolve() };
+const deps = { checkDatabase: () => Promise.resolve(), idempotencyStore: memoryIdempotencyStore() };
 
 describe('X-Request-Id', () => {
   it('is returned on a successful response', async () => {
