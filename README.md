@@ -32,8 +32,10 @@ API and background workers for Alluvi AI. Node.js (TypeScript), PostgreSQL on Su
 | Command                    | What it does                                          |
 | -------------------------- | ----------------------------------------------------- |
 | `npm run dev`              | Starts the server and restarts it when a file changes |
+| `npm run worker`           | Starts the background job worker (second terminal)    |
 | `npm run build`            | Compiles TypeScript to JavaScript in `dist/`          |
 | `npm start`                | Runs the compiled server from `dist/`                 |
+| `npm run start:worker`     | Runs the compiled worker from `dist/`                 |
 | `npm test`                 | Runs the tests once                                   |
 | `npm run test:watch`       | Runs the tests and re-runs them on changes            |
 | `npm run typecheck`        | Checks types without producing output                 |
