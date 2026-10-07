@@ -88,3 +88,13 @@ export function memoryJobQueue<P>(): MemoryJobQueue<P> {
     },
   };
 }
+
+// A schedule runs one job kind on a cron expression. At most one schedule
+// per job in v1, so the table is keyed by job name; a job without an entry
+// is never scheduled.
+export interface ScheduleSpec<Payload> {
+  cron: string;
+  payload: Payload;
+}
+
+export type JobSchedules<P> = { readonly [N in keyof P]?: ScheduleSpec<P[N]> };

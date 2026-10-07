@@ -16,6 +16,7 @@ import type {
   JobHandlers,
   JobLogger,
   JobQueue,
+  JobSchedules,
   JobSettings,
 } from './queue.js';
 
@@ -26,6 +27,9 @@ export interface PgBossOptions<P> {
   jobs: JobCatalogue<P>;
   // Without handlers this process only enqueues.
   handlers?: JobHandlers<P>;
+  // Cron schedules, registered by the worker on start. Only read when
+  // handlers are given.
+  schedules?: JobSchedules<P>;
   log: JobLogger;
   // Shown in pg-boss's instance registry: 'api' or 'worker'.
   instanceName: string;
@@ -53,12 +57,15 @@ function queueOptions(settings: JobSettings) {
 }
 
 export function createPgBoss<P>(options: PgBossOptions<P>): PgBossRunner<P> {
-  const { connectionString, jobs, handlers, log, instanceName, pollingIntervalSeconds } = options;
+  const { connectionString, jobs, handlers, schedules, log, instanceName, pollingIntervalSeconds } =
+    options;
 
   const boss = new PgBoss({
     connectionString,
     instanceName,
     supervise: handlers !== undefined,
+    // Likewise only the worker turns cron schedules into jobs.
+    schedule: handlers !== undefined,
     // Supabase's pooler does not support LISTEN/NOTIFY; polling is the floor anyway.
     useListenNotify: false,
   });
@@ -100,6 +107,22 @@ export function createPgBoss<P>(options: PgBossOptions<P>): PgBossRunner<P> {
 
     if (handlers === undefined) {
       return;
+    }
+
+    // Schedules are upserted by job name, and a job that lost its schedule
+    // in the code is unscheduled, so the database always mirrors schedules.ts.
+    // 'missed: once' sends one job for a run the worker was down for.
+    for (const name of names) {
+      const spec = schedules?.[name];
+      if (spec === undefined) {
+        await boss.unschedule(name);
+      } else {
+        await boss.schedule(name, spec.cron, spec.payload as object, {
+          tz: 'UTC',
+          missed: 'once',
+          singletonKey: name,
+        });
+      }
     }
 
     for (const name of names) {

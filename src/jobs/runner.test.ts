@@ -5,7 +5,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { config } from '../config/index.js';
 import { describeWithDatabase } from '../../test/db.js';
-import type { JobCatalogue, JobHandlers, JobLogger } from './queue.js';
+import type { JobCatalogue, JobHandlers, JobLogger, JobSchedules } from './queue.js';
 import { createPgBoss, DEAD_LETTER_QUEUE, type PgBossRunner } from './runner.js';
 
 interface TestPayloads {
@@ -33,7 +33,10 @@ const catalogue: JobCatalogue<TestPayloads> = {
 
 const silent: JobLogger = { info: () => undefined, warn: () => undefined, error: () => undefined };
 
-function build(handlers?: JobHandlers<TestPayloads>): PgBossRunner<TestPayloads> {
+function build(
+  handlers?: JobHandlers<TestPayloads>,
+  schedules?: JobSchedules<TestPayloads>,
+): PgBossRunner<TestPayloads> {
   return createPgBoss({
     connectionString: config.TEST_DATABASE_URL ?? '',
     jobs: catalogue,
@@ -41,8 +44,14 @@ function build(handlers?: JobHandlers<TestPayloads>): PgBossRunner<TestPayloads>
     instanceName: 'test',
     pollingIntervalSeconds: 0.5,
     ...(handlers !== undefined && { handlers }),
+    ...(schedules !== undefined && { schedules }),
   });
 }
+
+const noHandlers: JobHandlers<TestPayloads> = {
+  'test.echo': () => Promise.resolve(),
+  'test.explode': () => Promise.resolve(),
+};
 
 // Waits until `check` resolves true, polling every 100 ms, for up to `ms`.
 async function waitFor(check: () => Promise<boolean>, ms = 15_000): Promise<void> {
@@ -120,6 +129,28 @@ describeWithDatabase('createPgBoss', () => {
     expect(id).toEqual(expect.any(String));
     const [job] = await api.boss.findJobs('test.echo', { id: id ?? '' });
     expect(job?.state).toBe('created');
+  }, 30_000);
+
+  it('registers the schedules from the table and removes the ones that are gone', async () => {
+    const scheduled = build(noHandlers, {
+      'test.echo': { cron: '0 3 * * *', payload: { value: 'nightly' } },
+    });
+    runners.push(scheduled);
+    await scheduled.start();
+
+    const after = await scheduled.boss.getSchedules();
+    expect(after.map((s) => [s.name, s.cron, s.timezone, s.data])).toEqual([
+      ['test.echo', '0 3 * * *', 'UTC', { value: 'nightly' }],
+    ]);
+
+    // A second start with no schedules for this catalogue unschedules it.
+    await scheduled.stop();
+    runners.pop();
+    const bare = build(noHandlers, {});
+    runners.push(bare);
+    await bare.start();
+
+    expect(await bare.boss.getSchedules()).toEqual([]);
   }, 30_000);
 
   it('keeps one waiting job per singleton key', async () => {
