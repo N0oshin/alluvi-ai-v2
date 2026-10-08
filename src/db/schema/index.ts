@@ -28,3 +28,4 @@
 
 export * from './enums.js';
 export * from './infrastructure.js';
+export * from './identity.js';

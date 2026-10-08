@@ -7,8 +7,8 @@ import * as schema from './index.js';
 const all = Object.values(enums).filter(isPgEnum);
 
 describe('enumerations', () => {
-  it('defines the 29 enums of document 01 section 5', () => {
-    expect(all).toHaveLength(29);
+  it('defines the 31 enums of document 01 section 5', () => {
+    expect(all).toHaveLength(31);
   });
 
   it('uses snake_case type names and values', () => {
@@ -50,6 +50,6 @@ describe('enumerations', () => {
   });
 
   it('is re-exported by the schema barrel', () => {
-    expect(Object.values(schema).filter(isPgEnum)).toHaveLength(29);
+    expect(Object.values(schema).filter(isPgEnum)).toHaveLength(31);
   });
 });

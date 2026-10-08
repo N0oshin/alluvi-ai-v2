@@ -10,6 +10,15 @@ export const userStatusEnum = pgEnum('user_status', [
 export const authProviderEnum = pgEnum('auth_provider', ['apple', 'google', 'email']);
 export const consentTypeEnum = pgEnum('consent_type', ['terms_and_privacy', 'marketing']);
 export const platformEnum = pgEnum('platform', ['ios', 'android']);
+// A phone permission as the app last reported it: push notifications on both
+// platforms, exact alarms on Android
+export const permissionStateEnum = pgEnum('permission_state', [
+  'granted',
+  'denied',
+  'not_determined',
+]);
+
+export const magicIntentEnum = pgEnum('magic_intent', ['sign_in', 'sign_up']);
 
 // Profile
 export const avatarKindEnum = pgEnum('avatar_kind', ['initials', 'uploaded']);

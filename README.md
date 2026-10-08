@@ -50,7 +50,7 @@ API and background workers for Alluvi AI. Node.js (TypeScript), PostgreSQL on Su
 
 Tables are described in TypeScript in `src/db/schema/` (one file per bounded context, re-exported by `index.ts`). `drizzle-kit`, configured in `drizzle.config.ts`, turns them into numbered SQL files in `src/db/migrations/`, which are committed with their snapshots and never edited afterwards.
 
-To change the database: edit a schema file, run `npm run migrate:generate`, read the generated `.sql` file, then run `npm run migrate` to apply it. `npm run migrate:check` verifies the migration folder is consistent. Only `migrate` connects to the database; the other two work from the files alone. `drizzle-kit push` is not used.
+To change the database: edit a schema file, run `npm run migrate:generate -- --name <what_it_does>` (for example `--name users`; without a name drizzle-kit invents a random one), read the generated `.sql` file, then run `npm run migrate` to apply it. A migration can be renamed later as long as the `tag` in `meta/_journal.json` is changed to match: the migrator identifies an applied migration by the hash of its content, not its name. `npm run migrate:check` verifies the migration folder is consistent. Only `migrate` connects to the database; the other two work from the files alone. `drizzle-kit push` is not used.
 
 ## Tests
 

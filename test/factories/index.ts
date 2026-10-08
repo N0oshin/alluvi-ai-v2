@@ -4,9 +4,11 @@
 //   import { factories } from '../factories/index.js';
 //   const row = await factories.outboxEvent.create();
 
+import * as identity from './identity.js';
 import * as infrastructure from './infrastructure.js';
 
 export const factories = {
+  ...identity,
   ...infrastructure,
 };
 
