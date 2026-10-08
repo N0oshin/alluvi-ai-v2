@@ -8,6 +8,7 @@ import { addRateLimiting, type RateLimitStore } from './http/rate-limit.js';
 import { addRequestIdHeader, generateRequestId } from './http/request-id.js';
 import type { JobPayloads } from './jobs/definitions.js';
 import type { JobQueue } from './jobs/queue.js';
+import type { Providers } from './providers/index.js';
 import { healthRoutes, type HealthDependencies } from './routes/health.js';
 import { v1Routes } from './routes/v1.js';
 
@@ -18,6 +19,8 @@ export type AppDependencies = HealthDependencies & {
   rateLimitStore: RateLimitStore;
   // Background jobs the routes enqueue. Handlers run in the worker process.
   jobs: JobQueue<JobPayloads>;
+  // The external services (vision, email, push, storage).
+  providers: Providers;
 };
 
 const PLACEHOLDER_SUBJECT = '00000000-0000-0000-0000-000000000000';

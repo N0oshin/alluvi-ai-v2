@@ -3,6 +3,7 @@
 import type { OutboxStore } from '../../db/outbox.js';
 import type { IdempotencyStore } from '../../http/idempotency.js';
 import type { RateLimitStore } from '../../http/rate-limit.js';
+import type { Providers } from '../../providers/index.js';
 import type { JobPayloads } from '../definitions.js';
 import type { JobHandlers } from '../queue.js';
 import { infrastructureCleanup } from './infrastructure.js';
@@ -14,6 +15,8 @@ export interface HandlerDependencies {
   outboxStore: OutboxStore;
   // Event type -> consumers, assembled in the worker as phases add them.
   consumers: OutboxConsumers;
+  // Jobs that call a vendor (scan analysis, email, push) take it from here.
+  providers: Providers;
 }
 
 export function buildHandlers(deps: HandlerDependencies): JobHandlers<JobPayloads> {

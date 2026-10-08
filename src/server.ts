@@ -11,6 +11,7 @@ import { createRateLimitStore } from './db/rate-limit-store.js';
 import { loggerOptions } from './http/logging.js';
 import { jobs } from './jobs/definitions.js';
 import { createPgBoss } from './jobs/runner.js';
+import { buildProviders } from './providers/index.js';
 
 const logger = loggerOptions({
   level: config.LOG_LEVEL,
@@ -34,6 +35,7 @@ const app = buildApp(
     idempotencyStore: createIdempotencyStore(db),
     rateLimitStore: createRateLimitStore(db),
     jobs: queue.queue,
+    providers: buildProviders(config),
   },
   { logger },
 );

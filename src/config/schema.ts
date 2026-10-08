@@ -7,6 +7,20 @@
 import { z } from 'zod';
 import { LOG_LEVELS } from '../http/logging.js';
 
+// The allowed names for each external service provider (src/providers/).
+// 'fake' needs no key and is the default outside production, so a fresh
+// clone starts without any vendor account.
+export const FOOD_VISION_PROVIDERS = ['fake', 'snapcalorie', 'gemini'] as const;
+export const EMAIL_PROVIDERS = ['fake', 'resend'] as const;
+export const PUSH_PROVIDERS = ['fake', 'fcm'] as const;
+export const STORAGE_PROVIDERS = ['fake', 's3'] as const;
+const PROVIDER_VARIABLES = [
+  'FOOD_VISION_PROVIDER',
+  'EMAIL_PROVIDER',
+  'PUSH_PROVIDER',
+  'STORAGE_PROVIDER',
+] as const;
+
 const rawSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // Environment variables are always strings; z.coerce turns "3000" into 3000.
@@ -20,6 +34,10 @@ const rawSchema = z.object({
   // How much the app writes to its log. Optional: the default depends on
   // NODE_ENV and is filled in below.
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
+  FOOD_VISION_PROVIDER: z.enum(FOOD_VISION_PROVIDERS).default('fake'),
+  EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default('fake'),
+  PUSH_PROVIDER: z.enum(PUSH_PROVIDERS).default('fake'),
+  STORAGE_PROVIDER: z.enum(STORAGE_PROVIDERS).default('fake'),
 });
 
 // Detailed in development, nothing in tests, the useful lines in production.
@@ -35,10 +53,24 @@ function defaultLogLevel(nodeEnv: 'development' | 'test' | 'production') {
 }
 
 // `...data` copies every validated field; LOG_LEVEL is then set for sure.
-const schema = rawSchema.transform((data) => ({
-  ...data,
-  LOG_LEVEL: data.LOG_LEVEL ?? defaultLogLevel(data.NODE_ENV),
-}));
+const schema = rawSchema
+  .transform((data) => ({
+    ...data,
+    LOG_LEVEL: data.LOG_LEVEL ?? defaultLogLevel(data.NODE_ENV),
+  }))
+  .check((ctx) => {
+    if (ctx.value.NODE_ENV !== 'production') return;
+    for (const variable of PROVIDER_VARIABLES) {
+      if (ctx.value[variable] === 'fake') {
+        ctx.issues.push({
+          code: 'custom',
+          message: 'must not be fake in production',
+          input: ctx.value[variable],
+          path: [variable],
+        });
+      }
+    }
+  });
 
 export type Config = z.infer<typeof schema>;
 

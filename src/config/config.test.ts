@@ -25,7 +25,16 @@ describe('loadConfig', () => {
   it('defaults LOG_LEVEL from NODE_ENV and accepts an explicit value', () => {
     expect(loadConfig({ ...valid, NODE_ENV: 'development' }).LOG_LEVEL).toBe('debug');
     expect(loadConfig({ ...valid, NODE_ENV: 'test' }).LOG_LEVEL).toBe('silent');
-    expect(loadConfig({ ...valid, NODE_ENV: 'production' }).LOG_LEVEL).toBe('info');
+    // Production refuses fake providers, so name real ones here.
+    const production = {
+      ...valid,
+      NODE_ENV: 'production',
+      FOOD_VISION_PROVIDER: 'gemini',
+      EMAIL_PROVIDER: 'resend',
+      PUSH_PROVIDER: 'fcm',
+      STORAGE_PROVIDER: 's3',
+    };
+    expect(loadConfig(production).LOG_LEVEL).toBe('info');
     expect(loadConfig({ ...valid, LOG_LEVEL: 'warn' }).LOG_LEVEL).toBe('warn');
   });
 

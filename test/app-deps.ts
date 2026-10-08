@@ -11,6 +11,7 @@ import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
 import { memoryJobQueue } from '../src/jobs/queue.js';
+import { fakeProviders } from '../src/providers/index.js';
 
 export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependencies {
   return {
@@ -18,6 +19,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     idempotencyStore: memoryIdempotencyStore(),
     rateLimitStore: memoryRateLimitStore(),
     jobs: memoryJobQueue<JobPayloads>(),
+    providers: fakeProviders(),
     ...overrides,
   };
 }

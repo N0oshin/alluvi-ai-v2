@@ -15,6 +15,7 @@ import { buildHandlers } from '../jobs/handlers/index.js';
 import type { OutboxConsumers } from '../jobs/handlers/outbox.js';
 import { createPgBoss } from '../jobs/runner.js';
 import { schedules } from '../jobs/schedules.js';
+import { buildProviders } from '../providers/index.js';
 
 const log = pino(
   loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }),
@@ -32,6 +33,7 @@ const runner = createPgBoss({
     rateLimitStore: createRateLimitStore(db),
     outboxStore: createOutboxStore(db),
     consumers,
+    providers: buildProviders(config),
   }),
   schedules,
   log,

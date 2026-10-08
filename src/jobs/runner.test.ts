@@ -138,7 +138,9 @@ describeWithDatabase('createPgBoss', () => {
     runners.push(scheduled);
     await scheduled.start();
 
-    const after = await scheduled.boss.getSchedules();
+    // Filtered by name: the development worker's schedules live in the same
+    // database and must not count.
+    const after = await scheduled.boss.getSchedules('test.echo');
     expect(after.map((s) => [s.name, s.cron, s.timezone, s.data])).toEqual([
       ['test.echo', '0 3 * * *', 'UTC', { value: 'nightly' }],
     ]);
@@ -150,7 +152,7 @@ describeWithDatabase('createPgBoss', () => {
     runners.push(bare);
     await bare.start();
 
-    expect(await bare.boss.getSchedules()).toEqual([]);
+    expect(await bare.boss.getSchedules('test.echo')).toEqual([]);
   }, 30_000);
 
   it('keeps one waiting job per singleton key', async () => {
