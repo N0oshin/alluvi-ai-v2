@@ -25,7 +25,8 @@ describe('loadConfig', () => {
   it('defaults LOG_LEVEL from NODE_ENV and accepts an explicit value', () => {
     expect(loadConfig({ ...valid, NODE_ENV: 'development' }).LOG_LEVEL).toBe('debug');
     expect(loadConfig({ ...valid, NODE_ENV: 'test' }).LOG_LEVEL).toBe('silent');
-    // Production refuses fake providers, so name real ones here.
+    // Production refuses fake providers and requires signing keys, so name
+    // real ones here.
     const production = {
       ...valid,
       NODE_ENV: 'production',
@@ -33,6 +34,9 @@ describe('loadConfig', () => {
       EMAIL_PROVIDER: 'resend',
       PUSH_PROVIDER: 'fcm',
       STORAGE_PROVIDER: 's3',
+      ACCESS_TOKEN_KEYS: JSON.stringify([
+        { kid: 'k1', kty: 'OKP', crv: 'Ed25519', x: 'public', d: 'secret' },
+      ]),
     };
     expect(loadConfig(production).LOG_LEVEL).toBe('info');
     expect(loadConfig({ ...valid, LOG_LEVEL: 'warn' }).LOG_LEVEL).toBe('warn');
@@ -65,5 +69,36 @@ describe('loadConfig', () => {
 
   it('rejects an unknown NODE_ENV', () => {
     expect(() => loadConfig({ ...valid, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
+  });
+
+  describe('ACCESS_TOKEN_KEYS', () => {
+    const key = { kid: 'k1', kty: 'OKP', crv: 'Ed25519', x: 'public', d: 'secret' };
+
+    it('is optional outside production and parsed into a list when set', () => {
+      expect(loadConfig(valid).ACCESS_TOKEN_KEYS).toBeUndefined();
+      const config = loadConfig({ ...valid, ACCESS_TOKEN_KEYS: JSON.stringify([key]) });
+      expect(config.ACCESS_TOKEN_KEYS).toEqual([key]);
+    });
+
+    it('names the variable when the value is not a key list', () => {
+      expect(() => loadConfig({ ...valid, ACCESS_TOKEN_KEYS: 'nope' })).toThrow(
+        /ACCESS_TOKEN_KEYS: must be a JSON array/,
+      );
+    });
+
+    it('is required in production', () => {
+      const production = {
+        ...valid,
+        NODE_ENV: 'production',
+        FOOD_VISION_PROVIDER: 'gemini',
+        EMAIL_PROVIDER: 'resend',
+        PUSH_PROVIDER: 'fcm',
+        STORAGE_PROVIDER: 's3',
+      };
+      expect(() => loadConfig(production)).toThrow(/ACCESS_TOKEN_KEYS: is required/);
+      expect(
+        loadConfig({ ...production, ACCESS_TOKEN_KEYS: JSON.stringify([key]) }).ACCESS_TOKEN_KEYS,
+      ).toEqual([key]);
+    });
   });
 });

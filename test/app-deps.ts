@@ -7,6 +7,7 @@
 //   const app = buildApp(fakeDeps({ checkDatabase: () => Promise.reject(new Error('down')) }));
 
 import type { AppDependencies } from '../src/app.js';
+import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
@@ -20,6 +21,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     rateLimitStore: memoryRateLimitStore(),
     jobs: memoryJobQueue<JobPayloads>(),
     providers: fakeProviders(),
+    accessTokens: ephemeralAccessTokenService(),
     ...overrides,
   };
 }

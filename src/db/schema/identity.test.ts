@@ -285,10 +285,14 @@ describeWithDatabase('devices in the database', () => {
   });
 
   it('rejects a permission value outside the enum', async () => {
-    const insert = factories.device.create({
-      pushPermission: 'maybe' as unknown as 'granted',
-    });
-    await expect(insert).rejects.toThrow(/invalid input value for enum permission_state/);
+    // No constraint name here: an enum violation is a type error in
+    // PostgreSQL, so the message on the inner error is checked instead.
+    const error = await factories.device
+      .create({ pushPermission: 'maybe' as unknown as 'granted' })
+      .then(() => undefined)
+      .catch((e: unknown) => e);
+    const cause = (error as { cause?: { message?: string } }).cause;
+    expect(cause?.message).toMatch(/invalid input value for enum permission_state/);
   });
 
   it('keeps guest devices but deletes a user’s devices with the user', async () => {

@@ -5,6 +5,7 @@
 // built in ./index.ts.
 
 import { z } from 'zod';
+import { parseAccessTokenKeys } from '../auth/keys.js';
 import { LOG_LEVELS } from '../http/logging.js';
 
 // The allowed names for each external service provider (src/providers/).
@@ -38,6 +39,26 @@ const rawSchema = z.object({
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default('fake'),
   PUSH_PROVIDER: z.enum(PUSH_PROVIDERS).default('fake'),
   STORAGE_PROVIDER: z.enum(STORAGE_PROVIDERS).default('fake'),
+  // The access token signing keys as a JSON array (src/auth/keys.ts). The
+  // string from the environment is turned into the parsed list here, so the
+  // rest of the app never sees the raw JSON. Optional outside production:
+  // without it the server makes a key at start-up (src/server.ts).
+  ACCESS_TOKEN_KEYS: z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined) return undefined;
+      try {
+        return parseAccessTokenKeys(value);
+      } catch (error) {
+        ctx.issues.push({
+          code: 'custom',
+          message: error instanceof Error ? error.message : 'invalid',
+          input: value,
+        });
+        return z.NEVER;
+      }
+    }),
 });
 
 // Detailed in development, nothing in tests, the useful lines in production.
@@ -60,6 +81,14 @@ const schema = rawSchema
   }))
   .check((ctx) => {
     if (ctx.value.NODE_ENV !== 'production') return;
+    if (ctx.value.ACCESS_TOKEN_KEYS === undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        message: 'is required in production',
+        input: undefined,
+        path: ['ACCESS_TOKEN_KEYS'],
+      });
+    }
     for (const variable of PROVIDER_VARIABLES) {
       if (ctx.value[variable] === 'fake') {
         ctx.issues.push({

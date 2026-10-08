@@ -5,6 +5,11 @@
 import pino from 'pino';
 import { config } from './config/index.js';
 import { buildApp } from './app.js';
+import {
+  createAccessTokenService,
+  ephemeralAccessTokenService,
+  type AccessTokenService,
+} from './auth/access-token.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
@@ -18,16 +23,30 @@ const logger = loggerOptions({
   pretty: config.NODE_ENV === 'development',
 });
 
+// A Pino logger for the pieces that start before the app exists.
+const log = pino(logger);
+
 // The job queue, in enqueue-only mode: no handlers, so this process never
-// runs a job. The worker process (src/workers/index.ts) does that. It gets
-// its own Pino logger because it starts before the app exists.
+// runs a job. The worker process (src/workers/index.ts) does that.
 const queue = createPgBoss({
   connectionString: config.DATABASE_URL,
   jobs,
-  log: pino(logger),
+  log,
   instanceName: 'api',
 });
 await queue.start();
+
+// Access token keys come from the environment. Outside production the server
+// may run without them, on a key made now and forgotten at exit.
+let accessTokens: AccessTokenService;
+if (config.ACCESS_TOKEN_KEYS !== undefined) {
+  accessTokens = createAccessTokenService(config.ACCESS_TOKEN_KEYS);
+} else {
+  log.warn(
+    'ACCESS_TOKEN_KEYS is not set; using a key generated at start-up, so every access token expires at restart',
+  );
+  accessTokens = ephemeralAccessTokenService();
+}
 
 const app = buildApp(
   {
@@ -36,6 +55,7 @@ const app = buildApp(
     rateLimitStore: createRateLimitStore(db),
     jobs: queue.queue,
     providers: buildProviders(config),
+    accessTokens,
   },
   { logger },
 );

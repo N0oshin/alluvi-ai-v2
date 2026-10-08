@@ -1,6 +1,7 @@
 // Builds the application without starting a network listener
 
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type { AccessTokenService } from './auth/access-token.js';
 import { addErrorHandling } from './http/error-handler.js';
 import { addIdempotency, type IdempotencyStore } from './http/idempotency.js';
 import { RequestLogController } from './http/logging.js';
@@ -21,6 +22,9 @@ export type AppDependencies = HealthDependencies & {
   jobs: JobQueue<JobPayloads>;
   // The external services (vision, email, push, storage).
   providers: Providers;
+  // Issues and verifies access tokens (Phase 2.2). The authentication hook
+  // that reads them from requests is the next item.
+  accessTokens: AccessTokenService;
 };
 
 const PLACEHOLDER_SUBJECT = '00000000-0000-0000-0000-000000000000';
