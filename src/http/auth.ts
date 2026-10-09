@@ -82,7 +82,9 @@ export function addAuthentication(app: FastifyInstance, options: AuthOptions): v
   const { accessTokens, guestSessions } = options;
   const now = options.now ?? (() => new Date());
 
-  app.decorateRequest('principal', null);
+  // Registers the field with no starting value. The hook below assigns it on
+  // every request before any handler runs, so handlers never see it unset.
+  app.decorateRequest('principal');
 
   // onRequest is the earliest hook: before the body is parsed and before the
   // rate limit and idempotency hooks, which both want to know the caller.
