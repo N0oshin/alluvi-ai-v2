@@ -71,6 +71,13 @@
       "when": 1791535712241,
       "tag": "0009_sessions_previous_refresh_token_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791545180167,
+      "tag": "0010_devices_install_id",
+      "breakpoints": true
     }
   ]
 }

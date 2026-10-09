@@ -1,8 +1,3 @@
-// Identity and Access tables.
-//
-//   users, auth_identities, devices, sessions, guest_sessions,
-//   magic_link_tokens, user_consents.
-
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -90,11 +85,15 @@ export const authIdentities = pgTable(
   ],
 );
 
+// One row per app install. The phone generates `install_id` once at first
+// launch and sends it with every guest session request and magic link
+// consumption; a reinstall gets a new id and so a new row. (Decision 36.)
 export const devices = pgTable(
   'devices',
   {
     ...baseColumns,
     userId: uuid().references(() => users.id, { onDelete: 'cascade' }),
+    installId: text().notNull(),
     platform: platformEnum().notNull(),
     // FCM registration token. Null until the app has permission and a token.
     pushToken: text(),
@@ -104,7 +103,13 @@ export const devices = pgTable(
     appVersion: text(),
     osVersion: text(),
   },
-  (table) => [index('devices_user_id').on(table.userId)],
+  (table) => [
+    index('devices_user_id').on(table.userId),
+    // POST /v1/guest-sessions looks a device up by install id, and the same
+    // install must never produce two device rows.
+    uniqueIndex('devices_install_id').on(table.installId),
+    check('devices_install_id_length', sql`char_length(${table.installId}) between 8 and 128`),
+  ],
 );
 
 // A signed-in device. One row per sign-in; it lives until it expires, the

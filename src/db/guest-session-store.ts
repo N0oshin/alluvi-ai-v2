@@ -14,7 +14,7 @@ import {
   hashGuestToken,
 } from '../auth/guest-token.js';
 import { AppError } from '../http/errors.js';
-import type { Database } from './idempotency-store.js';
+import type { Executor } from './idempotency-store.js';
 import { guestSessions } from './schema/index.js';
 
 export interface GuestSession {
@@ -51,7 +51,7 @@ const toGuestSession = (row: RowFields): GuestSession => ({
   expiresAt: row.expiresAt,
 });
 
-export function createGuestSessionStore(db: Database): GuestSessionStore {
+export function createGuestSessionStore(db: Executor): GuestSessionStore {
   return {
     async create(deviceId, now) {
       const guestToken = generateGuestToken();

@@ -51,6 +51,7 @@ export const authIdentity = defineFactory(authIdentities, () => {
 // Pass `userId` to attach it to a user.
 export const device = defineFactory(devices, () => ({
   userId: null,
+  installId: `install-${nextSequence()}-0000`,
   platform: 'ios' as const,
   pushToken: `fcm-token-${nextSequence()}`,
   pushPermission: 'granted' as const,

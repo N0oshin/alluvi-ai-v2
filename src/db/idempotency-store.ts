@@ -6,7 +6,8 @@
 // failing. See docs/backend-notes.md entry 25.
 
 import { and, eq, lte } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import {
   IDEMPOTENCY_TTL_MS,
   type IdempotencyRecord,
@@ -18,6 +19,8 @@ import type * as schema from './schema/index.js';
 // Any Drizzle client built over this project's schema: the real one from
 // src/db/index.ts or the test one from test/db.ts.
 export type Database = NodePgDatabase<typeof schema>;
+
+export type Executor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
 
 export function createIdempotencyStore(
   db: Database,

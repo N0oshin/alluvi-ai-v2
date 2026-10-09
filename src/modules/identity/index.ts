@@ -1,2 +1,4 @@
-﻿// Bounded context: identity. Schema, routes, service and repository are added in their phase (see docs/04).
-export {};
+//
+//   guest-sessions.ts   POST /v1/guest-sessions
+
+export { guestSessionRoutes } from './guest-sessions.js';

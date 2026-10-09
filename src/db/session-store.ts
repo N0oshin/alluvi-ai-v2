@@ -11,7 +11,7 @@ import {
   REFRESH_TOKEN_LIFETIME_MS,
 } from '../auth/refresh-token.js';
 import { AppError } from '../http/errors.js';
-import type { Database } from './idempotency-store.js';
+import type { Executor } from './idempotency-store.js';
 import { sessions } from './schema/index.js';
 
 export interface Session {
@@ -53,7 +53,9 @@ const toSession = (row: Row): Session => ({
 type RotationOutcome =
   { kind: 'rotated'; issued: IssuedSession } | { kind: 'reused' } | { kind: 'unknown' };
 
-export function createSessionStore(db: Database): SessionStore {
+// Takes an Executor rather than the Database so that sign-in can call
+// `createSessionStore(tx).create(...)` inside its account transaction.
+export function createSessionStore(db: Executor): SessionStore {
   return {
     async create(userId, deviceId, now) {
       const refreshToken = generateRefreshToken();

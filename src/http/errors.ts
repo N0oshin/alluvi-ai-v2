@@ -13,12 +13,22 @@ export const ERROR_CODES = {
   // (document 02 section 4.4, backend notes entry 39).
   refresh_token_reused: { status: 401, message: 'Your session has ended. Sign in again.' },
   forbidden: { status: 403, message: 'You are not allowed to do this.' },
+  account_suspended: { status: 403, message: 'This account has been suspended.' },
   not_found: { status: 404, message: 'The resource was not found.' },
   conflict: { status: 409, message: 'The request conflicts with the current state.' },
+  email_linked_to_other_provider: {
+    status: 409,
+    message: 'This email is already linked to an account that signs in another way.',
+  },
   precondition_failed: { status: 412, message: 'The resource was changed by someone else.' },
   payload_too_large: { status: 413, message: 'The request is too large.' },
   unsupported_media_type: { status: 415, message: 'The content type is not supported.' },
   validation_failed: { status: 422, message: 'One or more fields are invalid.' },
+  // `terms_and_privacy` consent missing or not granted on account creation.
+  consent_required: {
+    status: 422,
+    message: 'You must accept the Terms and Conditions and Privacy Policy.',
+  },
   idempotency_key_reused: {
     status: 422,
     message: 'This Idempotency-Key was already used for a different request.',

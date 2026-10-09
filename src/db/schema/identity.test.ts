@@ -240,6 +240,7 @@ describe('devices', () => {
         'createdAt',
         'updatedAt',
         'userId',
+        'installId',
         'platform',
         'pushToken',
         'pushPermission',
@@ -249,6 +250,9 @@ describe('devices', () => {
       ].sort(),
     );
     expect(columnName(columns.exactAlarmPermission)).toBe('exact_alarm_permission');
+    // Added in Phase 2.3 (decision 36): the phone's own id for this install.
+    expect(columnName(columns.installId)).toBe('install_id');
+    expect(columns.installId.notNull).toBe(true);
   });
 
   it('allows a device with no user yet, and defaults push permission to not_determined', () => {
@@ -258,12 +262,13 @@ describe('devices', () => {
     expect(columns.exactAlarmPermission.notNull).toBe(false);
   });
 
-  it('points at users with cascade, and is indexed by user', () => {
+  it('points at users with cascade, is indexed by user, and is unique per install', () => {
     const config = getTableConfig(devices);
     expect(config.foreignKeys).toHaveLength(1);
     expect(config.foreignKeys[0]?.onDelete).toBe('cascade');
     expect(config.indexes.map((i) => [i.config.name, i.config.unique])).toEqual([
       ['devices_user_id', false],
+      ['devices_install_id', true],
     ]);
   });
 });

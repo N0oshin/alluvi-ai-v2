@@ -8,6 +8,8 @@
 
 import type { AppDependencies } from '../src/app.js';
 import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
+import { memoryAccountStore } from '../src/db/account-store.js';
+import { memoryDeviceStore } from '../src/db/device-store.js';
 import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
@@ -24,6 +26,8 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     providers: fakeProviders(),
     accessTokens: ephemeralAccessTokenService(),
     guestSessions: memoryGuestSessionStore(),
+    devices: memoryDeviceStore(),
+    accounts: memoryAccountStore(),
     ...overrides,
   };
 }

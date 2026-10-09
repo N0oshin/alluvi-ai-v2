@@ -10,6 +10,8 @@ import {
   ephemeralAccessTokenService,
   type AccessTokenService,
 } from './auth/access-token.js';
+import { createAccountStore } from './db/account-store.js';
+import { createDeviceStore } from './db/device-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
@@ -58,6 +60,8 @@ const app = buildApp(
     providers: buildProviders(config),
     accessTokens,
     guestSessions: createGuestSessionStore(db),
+    devices: createDeviceStore(db),
+    accounts: createAccountStore(db),
   },
   { logger },
 );

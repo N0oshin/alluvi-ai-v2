@@ -2,6 +2,8 @@
 
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { AccessTokenService } from './auth/access-token.js';
+import type { AccountStore } from './db/account-store.js';
+import type { DeviceStore } from './db/device-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
 import { addErrorHandling } from './http/error-handler.js';
@@ -27,10 +29,14 @@ export type AppDependencies = HealthDependencies & {
   // Issues and verifies access tokens; resolves guest tokens (Phase 2.2).
   accessTokens: AccessTokenService;
   guestSessions: GuestSessionStore;
+  devices: DeviceStore;
+  // Account creation and sign-in reads (Phase 2.3).
+  accounts: AccountStore;
 };
 
 // Idempotency keys are scoped to the caller. Anonymous callers share one
-// bucket; no idempotent route is expected to be public.
+// bucket; the only public idempotent route is POST /v1/guest-sessions, and
+// keys are random UUIDs, so two phones colliding on one is not a concern.
 const ANONYMOUS_SUBJECT = '00000000-0000-0000-0000-000000000000';
 function subjectOf(principal: Principal): string {
   switch (principal.kind) {
@@ -71,7 +77,7 @@ export function buildApp(deps: AppDependencies, options: AppOptions = {}): Fasti
   void app.register(healthRoutes(deps), { prefix: '/health' });
 
   // Every route inside v1Routes gets "/v1" in front of its path.
-  void app.register(v1Routes, { prefix: '/v1' });
+  void app.register(v1Routes(deps), { prefix: '/v1' });
 
   return app;
 }
