@@ -1,0 +1,104 @@
+// Guest sessions on the `guest_sessions` table: create on first launch,
+// resolve a guest token on each onboarding request, claim at sign-in.
+//
+// A guest session is the owner of the onboarding answers until an account
+// exists. Claiming it hands those answers to the
+// new user and ends the guest token: a claimed session no longer resolves, so
+// it cannot be claimed twice
+
+import { and, eq, isNull } from 'drizzle-orm';
+import {
+  generateGuestToken,
+  GUEST_TOKEN_LIFETIME_MS,
+  hashGuestToken,
+} from '../auth/guest-token.js';
+import { AppError } from '../http/errors.js';
+import type { Database } from './idempotency-store.js';
+import { guestSessions } from './schema/index.js';
+
+export interface GuestSession {
+  id: string;
+  deviceId: string;
+  claimedByUserId: string | null;
+  expiresAt: Date;
+}
+
+export interface IssuedGuestSession {
+  guestSession: GuestSession;
+  guestToken: string;
+}
+
+export interface GuestSessionStore {
+  // First launch: a new guest session for this device.
+  create(deviceId: string, now: Date): Promise<IssuedGuestSession>;
+  // Every onboarding request: the live, unclaimed session behind a token.
+  resolve(guestToken: string, now: Date): Promise<GuestSession>;
+  // Sign-in: attach the session to the new user, once.
+  claim(guestSessionId: string, userId: string, now: Date): Promise<GuestSession>;
+}
+
+type Row = typeof guestSessions.$inferSelect;
+
+const toGuestSession = (row: Row): GuestSession => ({
+  id: row.id,
+  deviceId: row.deviceId,
+  claimedByUserId: row.claimedByUserId,
+  expiresAt: row.expiresAt,
+});
+
+export function createGuestSessionStore(db: Database): GuestSessionStore {
+  return {
+    async create(deviceId, now) {
+      const guestToken = generateGuestToken();
+      const [row] = await db
+        .insert(guestSessions)
+        .values({
+          deviceId,
+          tokenHash: hashGuestToken(guestToken),
+          expiresAt: new Date(now.getTime() + GUEST_TOKEN_LIFETIME_MS),
+        })
+        .returning();
+      if (row === undefined) throw new Error('guest session insert returned no row');
+      return { guestSession: toGuestSession(row), guestToken };
+    },
+
+    async resolve(guestToken, now) {
+      const row = await db.query.guestSessions.findFirst({
+        where: eq(guestSessions.tokenHash, hashGuestToken(guestToken)),
+      });
+      if (row === undefined || row.claimedByUserId !== null || row.expiresAt <= now) {
+        throw new AppError('unauthenticated');
+      }
+      return toGuestSession(row);
+    },
+
+    async claim(guestSessionId, userId, now) {
+      // One statement claims only if still unclaimed, so two sign-ins racing
+      // for the same session cannot both win: the update matches one row for
+      // the first and none for the second.
+      const [claimed] = await db
+        .update(guestSessions)
+        .set({ claimedByUserId: userId })
+        .where(and(eq(guestSessions.id, guestSessionId), isNull(guestSessions.claimedByUserId)))
+        .returning();
+
+      if (claimed !== undefined) {
+        // If the session had expired, we put the owner back to null and refuse with 401. A guest who waited more than 30 days starts over. Otherwise, success:
+        if (claimed.expiresAt <= now) {
+          await db
+            .update(guestSessions)
+            .set({ claimedByUserId: null })
+            .where(eq(guestSessions.id, guestSessionId));
+          throw new AppError('unauthenticated');
+        }
+        return toGuestSession(claimed);
+      }
+
+      // Nothing matched: either already claimed, or no such session.
+      const existing = await db.query.guestSessions.findFirst({
+        where: eq(guestSessions.id, guestSessionId),
+      });
+      throw new AppError(existing === undefined ? 'unauthenticated' : 'conflict');
+    },
+  };
+}
