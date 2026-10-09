@@ -92,8 +92,7 @@ const toUserRecord = (row: UserRow): UserRecord => ({
 });
 
 export function createAccountStore(db: Executor): AccountStore {
-  // The writes shared by both a new and a returning sign-in. `tx` is the
-  // transaction they run in.
+  // attach the phone to the user, then open a session
   async function attachAndOpen(
     tx: Executor,
     userId: string,
