@@ -13,9 +13,23 @@ describe('buildProviders', () => {
   });
 
   it('refuses a vendor that is not implemented yet, naming the phase', () => {
-    expect(() => buildProviders(loadConfig({ ...env, EMAIL_PROVIDER: 'resend' }))).toThrow(
-      'EMAIL_PROVIDER=resend is not implemented yet; it arrives in Phase 2.3',
+    expect(() => buildProviders(loadConfig({ ...env, PUSH_PROVIDER: 'fcm' }))).toThrow(
+      'PUSH_PROVIDER=fcm is not implemented yet; it arrives in Phase 10.2',
     );
+  });
+
+  it('builds the Resend client when chosen with its settings', () => {
+    const providers = buildProviders(
+      loadConfig({
+        ...env,
+        EMAIL_PROVIDER: 'resend',
+        RESEND_API_KEY: 're_test',
+        EMAIL_FROM: 'Alluvi AI <hello@alluvi.ai>',
+      }),
+    );
+    // The real client, not the fake: it has no `sent` list.
+    expect(providers.email).not.toHaveProperty('sent');
+    expect(typeof providers.email.send).toBe('function');
   });
 
   it('refuses an unknown provider name at configuration time', () => {

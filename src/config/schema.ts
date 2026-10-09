@@ -22,6 +22,19 @@ const PROVIDER_VARIABLES = [
   'STORAGE_PROVIDER',
 ] as const;
 
+// "a, b ,c" -> ['a', 'b', 'c']; unset stays undefined; blanks are dropped.
+const commaList = z
+  .string()
+  .optional()
+  .transform((value) =>
+    value === undefined
+      ? undefined
+      : value
+          .split(',')
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0),
+  );
+
 const rawSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // Environment variables are always strings; z.coerce turns "3000" into 3000.
@@ -39,8 +52,18 @@ const rawSchema = z.object({
   // the app claims this URL as a Universal Link / App Link (Phase 2.3) so
   // tapping it opens the app. The default is a placeholder for development.
   MAGIC_LINK_BASE_URL: z.url().default('https://app.alluvi.ai/auth/magic-link'),
+  // The client ids an Apple / Google identity token may be issued for (its
+  // `aud`), comma separated: the iOS bundle id, the Android client id, and
+  // so on. Optional outside production: unset, the route answers 503.
+  APPLE_CLIENT_IDS: commaList,
+  GOOGLE_CLIENT_IDS: commaList,
   FOOD_VISION_PROVIDER: z.enum(FOOD_VISION_PROVIDERS).default('fake'),
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default('fake'),
+  // Resend (EMAIL_PROVIDER=resend). The key from the Resend dashboard, and
+  // the From header, e.g. "Alluvi AI <hello@alluvi.ai>", on a domain
+  // verified there. Both required when resend is selected.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(3).max(320).optional(),
   PUSH_PROVIDER: z.enum(PUSH_PROVIDERS).default('fake'),
   STORAGE_PROVIDER: z.enum(STORAGE_PROVIDERS).default('fake'),
   // The access token signing keys as a JSON array (src/auth/keys.ts). The
@@ -84,6 +107,22 @@ const schema = rawSchema
     LOG_LEVEL: data.LOG_LEVEL ?? defaultLogLevel(data.NODE_ENV),
   }))
   .check((ctx) => {
+    // A vendor's settings are required as soon as that vendor is chosen, in
+    // any environment: choosing resend without a key fails at start-up, not
+    // at the first magic link.
+    if (ctx.value.EMAIL_PROVIDER === 'resend') {
+      for (const variable of ['RESEND_API_KEY', 'EMAIL_FROM'] as const) {
+        if (ctx.value[variable] === undefined) {
+          ctx.issues.push({
+            code: 'custom',
+            message: 'is required when EMAIL_PROVIDER=resend',
+            input: undefined,
+            path: [variable],
+          });
+        }
+      }
+    }
+
     if (ctx.value.NODE_ENV !== 'production') return;
     if (ctx.value.ACCESS_TOKEN_KEYS === undefined) {
       ctx.issues.push({
@@ -92,6 +131,16 @@ const schema = rawSchema
         input: undefined,
         path: ['ACCESS_TOKEN_KEYS'],
       });
+    }
+    for (const variable of ['APPLE_CLIENT_IDS', 'GOOGLE_CLIENT_IDS'] as const) {
+      if (ctx.value[variable] === undefined || ctx.value[variable].length === 0) {
+        ctx.issues.push({
+          code: 'custom',
+          message: 'is required in production',
+          input: ctx.value[variable],
+          path: [variable],
+        });
+      }
     }
     for (const variable of PROVIDER_VARIABLES) {
       if (ctx.value[variable] === 'fake') {

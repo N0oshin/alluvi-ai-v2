@@ -33,6 +33,9 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     sessions: memorySessionStore(),
     magicLinks: memoryMagicLinkStore(),
     magicLinkBaseUrl: 'https://app.test/auth/magic-link',
+    // Not configured by default; the social sign-in tests build verifiers
+    // over a local key pair and pass them in.
+    identityTokens: {},
     ...overrides,
   };
 }

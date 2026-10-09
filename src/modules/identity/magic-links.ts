@@ -18,13 +18,14 @@ import {
 import type { AccountStore } from '../../db/account-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { MagicLinkStore } from '../../db/magic-link-store.js';
-import { consentTypeEnum, magicIntentEnum } from '../../db/schema/index.js';
+import { magicIntentEnum } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
 import { byIp, HOUR, MINUTE, SECOND } from '../../http/rate-limit.js';
 import { readTimeZone } from '../../http/time-zone.js';
 import { validate } from '../../http/validate.js';
 import type { EmailProvider } from '../../providers/email/index.js';
 import { magicLinkEmail } from './magic-link-email.js';
+import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';
 
 export interface MagicLinkRouteDependencies {
@@ -43,7 +44,7 @@ export interface MagicLinkRouteDependencies {
 const requestSchema = z.strictObject({
   email: z.string().min(3).max(254),
   intent: z.enum(magicIntentEnum.enumValues),
-  device_install_id: z.string().min(8).max(128),
+  device_install_id: installIdField,
   guest_session_id: z.uuid().nullable().optional(),
 });
 
@@ -55,17 +56,11 @@ export function normalizeEmail(raw: string): string {
   return email;
 }
 
-const consentSchema = z.strictObject({
-  type: z.enum(consentTypeEnum.enumValues),
-  version: z.string().min(1).max(50),
-  granted: z.boolean(),
-});
-
 const consumeSchema = z.strictObject({
   token: z.string().min(1).max(256),
-  device_install_id: z.string().min(8).max(128),
+  device_install_id: installIdField,
   // Needed only when an account is created; screen 119's checkboxes.
-  consents: z.array(consentSchema).max(10).default([]),
+  consents: consentsField,
   // Set after the person confirms opening a link requested on another install.
   confirm_device: z.boolean().default(false),
 });
@@ -84,20 +79,7 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
     now,
   });
 
-  // The install behind an install id, or 422 on the field.
-  async function deviceFor(installId: string) {
-    const device = await deps.devices.findByInstallId(installId);
-    if (device === undefined) {
-      throw new AppError('validation_failed', [
-        {
-          field: 'device_install_id',
-          code: 'unknown_device',
-          message: 'Register the install with POST /v1/guest-sessions first.',
-        },
-      ]);
-    }
-    return device;
-  }
+  const deviceFor = (installId: string) => resolveDevice(deps.devices, installId);
 
   return (app, _options, done) => {
     //   1. Validate the body, normalise the email, find the device.
@@ -207,11 +189,7 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
           email: link.email,
           givenName: null,
           familyName: null,
-          consents: body.consents.map((c) => ({
-            type: c.type,
-            documentVersion: c.version,
-            granted: c.granted,
-          })),
+          consents: toConsentDecisions(body.consents),
           guestSessionId: link.guestSessionId,
           deviceId: device.id,
           timeZone,

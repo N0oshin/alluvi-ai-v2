@@ -10,6 +10,7 @@ import {
   ephemeralAccessTokenService,
   type AccessTokenService,
 } from './auth/access-token.js';
+import { APPLE, createIdentityTokenVerifier, GOOGLE } from './auth/identity-token.js';
 import { createAccountStore } from './db/account-store.js';
 import { createDeviceStore } from './db/device-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
@@ -53,6 +54,16 @@ if (config.ACCESS_TOKEN_KEYS !== undefined) {
   accessTokens = ephemeralAccessTokenService();
 }
 
+// Apple and Google sign-in work only with their client ids configured.
+const identityTokens = {
+  apple: config.APPLE_CLIENT_IDS && createIdentityTokenVerifier(APPLE, config.APPLE_CLIENT_IDS),
+  google: config.GOOGLE_CLIENT_IDS && createIdentityTokenVerifier(GOOGLE, config.GOOGLE_CLIENT_IDS),
+};
+if (identityTokens.apple === undefined)
+  log.warn('APPLE_CLIENT_IDS is not set; POST /v1/auth/apple answers 503');
+if (identityTokens.google === undefined)
+  log.warn('GOOGLE_CLIENT_IDS is not set; POST /v1/auth/google answers 503');
+
 const app = buildApp(
   {
     checkDatabase,
@@ -67,6 +78,7 @@ const app = buildApp(
     sessions: createSessionStore(db),
     magicLinks: createMagicLinkStore(db),
     magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
+    identityTokens,
   },
   { logger },
 );

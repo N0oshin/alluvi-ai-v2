@@ -37,8 +37,22 @@ describe('loadConfig', () => {
       ACCESS_TOKEN_KEYS: JSON.stringify([
         { kid: 'k1', kty: 'OKP', crv: 'Ed25519', x: 'public', d: 'secret' },
       ]),
+      APPLE_CLIENT_IDS: 'ai.alluvi.app',
+      GOOGLE_CLIENT_IDS: 'ios-id.apps.googleusercontent.com, android-id.apps.googleusercontent.com',
+      RESEND_API_KEY: 're_test',
+      EMAIL_FROM: 'Alluvi AI <hello@alluvi.ai>',
     };
+    expect(() => loadConfig({ ...production, RESEND_API_KEY: undefined })).toThrow(
+      /RESEND_API_KEY: is required when EMAIL_PROVIDER=resend/,
+    );
     expect(loadConfig(production).LOG_LEVEL).toBe('info');
+    expect(loadConfig(production).GOOGLE_CLIENT_IDS).toEqual([
+      'ios-id.apps.googleusercontent.com',
+      'android-id.apps.googleusercontent.com',
+    ]);
+    expect(() => loadConfig({ ...production, APPLE_CLIENT_IDS: '' })).toThrow(
+      /APPLE_CLIENT_IDS: is required/,
+    );
     expect(loadConfig({ ...valid, LOG_LEVEL: 'warn' }).LOG_LEVEL).toBe('warn');
   });
 
@@ -94,6 +108,10 @@ describe('loadConfig', () => {
         EMAIL_PROVIDER: 'resend',
         PUSH_PROVIDER: 'fcm',
         STORAGE_PROVIDER: 's3',
+        APPLE_CLIENT_IDS: 'ai.alluvi.app',
+        GOOGLE_CLIENT_IDS: 'web.apps.googleusercontent.com',
+        RESEND_API_KEY: 're_test',
+        EMAIL_FROM: 'Alluvi AI <hello@alluvi.ai>',
       };
       expect(() => loadConfig(production)).toThrow(/ACCESS_TOKEN_KEYS: is required/);
       expect(

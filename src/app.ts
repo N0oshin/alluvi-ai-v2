@@ -6,6 +6,7 @@ import type { AccountStore } from './db/account-store.js';
 import type { DeviceStore } from './db/device-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
 import type { MagicLinkStore } from './db/magic-link-store.js';
+import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
 import type { SessionStore } from './db/session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
 import { addErrorHandling } from './http/error-handler.js';
@@ -39,6 +40,9 @@ export type AppDependencies = HealthDependencies & {
   // Email sign-in links and where they point (Phase 2.3).
   magicLinks: MagicLinkStore;
   magicLinkBaseUrl: string;
+  // Apple and Google identity token verifiers, each absent when not
+  // configured (Phase 2.3).
+  identityTokens: IdentityTokenVerifiers;
 };
 
 // Idempotency keys are scoped to the caller. Anonymous callers share one

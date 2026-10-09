@@ -14,6 +14,9 @@ export const ERROR_CODES = {
   refresh_token_reused: { status: 401, message: 'Your session has ended. Sign in again.' },
   // Unknown or malformed magic link token (document 02 section 4.3).
   magic_link_invalid: { status: 401, message: 'This link is not valid.' },
+  // Apple or Google identity token failed signature, audience, nonce or
+  // expiry (document 02 section 4.1).
+  invalid_identity_token: { status: 401, message: 'Sign-in could not be verified. Try again.' },
   forbidden: { status: 403, message: 'You are not allowed to do this.' },
   account_suspended: { status: 403, message: 'This account has been suspended.' },
   not_found: { status: 404, message: 'The resource was not found.' },
