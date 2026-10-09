@@ -59,8 +59,6 @@ const toSession = (row: Pick<Row, 'id' | 'userId' | 'deviceId' | 'expiresAt'>): 
 type RotationOutcome =
   { kind: 'rotated'; issued: IssuedSession } | { kind: 'reused' } | { kind: 'unknown' };
 
-// Takes an Executor rather than the Database so that sign-in can call
-// `createSessionStore(tx).create(...)` inside its account transaction.
 export function createSessionStore(db: Executor): SessionStore {
   return {
     async create(userId, deviceId, now) {

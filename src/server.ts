@@ -15,6 +15,7 @@ import { createDeviceStore } from './db/device-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
+import { createMagicLinkStore } from './db/magic-link-store.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
 import { createSessionStore } from './db/session-store.js';
 import { loggerOptions } from './http/logging.js';
@@ -64,6 +65,8 @@ const app = buildApp(
     devices: createDeviceStore(db),
     accounts: createAccountStore(db),
     sessions: createSessionStore(db),
+    magicLinks: createMagicLinkStore(db),
+    magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
   },
   { logger },
 );

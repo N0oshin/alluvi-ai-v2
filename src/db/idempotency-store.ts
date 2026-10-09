@@ -16,8 +16,6 @@ import {
 import { idempotencyKeys } from './schema/index.js';
 import type * as schema from './schema/index.js';
 
-// Any Drizzle client built over this project's schema: the real one from
-// src/db/index.ts or the test one from test/db.ts.
 export type Database = NodePgDatabase<typeof schema>;
 
 export type Executor = PgDatabase<NodePgQueryResultHKT, typeof schema>;

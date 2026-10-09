@@ -8,6 +8,7 @@
 import type { FastifyPluginCallback } from 'fastify';
 import type { AppDependencies } from '../app.js';
 import { guestSessionRoutes } from '../modules/identity/guest-sessions.js';
+import { magicLinkRoutes } from '../modules/identity/magic-links.js';
 import { sessionRoutes } from '../modules/identity/sessions.js';
 
 export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
@@ -20,6 +21,7 @@ export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
 
     void app.register(guestSessionRoutes(deps));
     void app.register(sessionRoutes(deps));
+    void app.register(magicLinkRoutes({ ...deps, email: deps.providers.email }));
 
     done();
   };

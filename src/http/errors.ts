@@ -12,18 +12,33 @@ export const ERROR_CODES = {
   // A rotated refresh token was presented again; the session has been revoked
   // (document 02 section 4.4, backend notes entry 39).
   refresh_token_reused: { status: 401, message: 'Your session has ended. Sign in again.' },
+  // Unknown or malformed magic link token (document 02 section 4.3).
+  magic_link_invalid: { status: 401, message: 'This link is not valid.' },
   forbidden: { status: 403, message: 'You are not allowed to do this.' },
   account_suspended: { status: 403, message: 'This account has been suspended.' },
   not_found: { status: 404, message: 'The resource was not found.' },
+  // Magic link requested with intent sign_in for an address with no account
+  // (document 02 section 4.2, screen 128; decision 35).
+  account_not_found: { status: 404, message: 'There is no account for this email address.' },
   conflict: { status: 409, message: 'The request conflicts with the current state.' },
   email_linked_to_other_provider: {
     status: 409,
     message: 'This email is already linked to an account that signs in another way.',
   },
+  // Magic link consumption (document 02 section 4.3).
+  magic_link_already_used: { status: 409, message: 'This link has already been used.' },
+  // The link was opened on a different install than requested it; the app
+  // asks the person to confirm and retries with confirm_device: true.
+  magic_link_other_device: {
+    status: 409,
+    message: 'This link was requested from a different device.',
+  },
+  magic_link_expired: { status: 410, message: 'This link has expired. Request a new one.' },
   precondition_failed: { status: 412, message: 'The resource was changed by someone else.' },
   payload_too_large: { status: 413, message: 'The request is too large.' },
   unsupported_media_type: { status: 415, message: 'The content type is not supported.' },
   validation_failed: { status: 422, message: 'One or more fields are invalid.' },
+  invalid_email: { status: 422, message: 'Enter a valid email address.' },
   // `terms_and_privacy` consent missing or not granted on account creation.
   consent_required: {
     status: 422,

@@ -35,6 +35,10 @@ const rawSchema = z.object({
   // How much the app writes to its log. Optional: the default depends on
   // NODE_ENV and is filled in below.
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
+  // Where a magic link points. The token is appended as ?token=mlt_... and
+  // the app claims this URL as a Universal Link / App Link (Phase 2.3) so
+  // tapping it opens the app. The default is a placeholder for development.
+  MAGIC_LINK_BASE_URL: z.url().default('https://app.alluvi.ai/auth/magic-link'),
   FOOD_VISION_PROVIDER: z.enum(FOOD_VISION_PROVIDERS).default('fake'),
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default('fake'),
   PUSH_PROVIDER: z.enum(PUSH_PROVIDERS).default('fake'),

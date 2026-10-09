@@ -11,6 +11,7 @@ import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
 import { memoryAccountStore } from '../src/db/account-store.js';
 import { memoryDeviceStore } from '../src/db/device-store.js';
 import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
+import { memoryMagicLinkStore } from '../src/db/magic-link-store.js';
 import { memorySessionStore } from '../src/db/session-store.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
@@ -30,6 +31,8 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     devices: memoryDeviceStore(),
     accounts: memoryAccountStore(),
     sessions: memorySessionStore(),
+    magicLinks: memoryMagicLinkStore(),
+    magicLinkBaseUrl: 'https://app.test/auth/magic-link',
     ...overrides,
   };
 }
