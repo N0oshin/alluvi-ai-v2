@@ -65,11 +65,6 @@ export interface SignInServiceOptions {
   now?: () => Date;
 }
 
-// The post-sign-up steps in order: name (screen 131), username (132, 133),
-// photo (134), then Home. A new user always starts at the first; a returning
-// user resumes at the first one not done. Phase 4's PATCH /v1/me sets
-// `username` and, when the photo step is finished or skipped,
-// `onboarding_completed_at`.
 export function nextStepFor(user: UserRecord, isNewUser: boolean): NextStep {
   if (user.status === 'pending_deletion') return 'restore_account';
   if (isNewUser) return 'confirm_name';
@@ -78,9 +73,6 @@ export function nextStepFor(user: UserRecord, isNewUser: boolean): NextStep {
   return 'home';
 }
 
-// The name shown until the person confirms it on screen 131. Apple sends a
-// name only on the very first sign-in and the magic link sends none, so the
-// fallbacks matter: the part of the email before the @, then a placeholder.
 export function initialFirstName(givenName: string | null, email: string | null): string {
   const given = givenName?.trim();
   if (given) return given.slice(0, 50);
