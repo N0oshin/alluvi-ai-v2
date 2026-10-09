@@ -5,6 +5,7 @@
 // one), and the only safe answer is to end the session for both of them.
 
 import { and, eq, isNull, or } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import {
   generateRefreshToken,
   hashRefreshToken,
@@ -30,6 +31,9 @@ export interface IssuedSession {
 export interface SessionStore {
   // Sign-in: a new session for this user on this device.
   create(userId: string, deviceId: string, now: Date): Promise<IssuedSession>;
+  // The session behind an access token's `sid`, live or not. Undefined when
+  // there is no such row.
+  find(sessionId: string): Promise<Session | undefined>;
   // Refresh: swap the token for a new one and extend the session.
   rotate(refreshToken: string, now: Date): Promise<IssuedSession>;
   // Log out. Revoking twice is harmless.
@@ -41,8 +45,10 @@ export interface SessionStore {
 //shape of one row from the sessions table
 type Row = typeof sessions.$inferSelect;
 
-//function that takes a full row and returns only the 4 fields the rest of the app should see
-const toSession = (row: Row): Session => ({
+//function that takes a row and returns only the 4 fields the rest of the app should see.
+// Only those four are required (`Pick`), so the memory store's row, which has
+// no timestamps, is accepted too.
+const toSession = (row: Pick<Row, 'id' | 'userId' | 'deviceId' | 'expiresAt'>): Session => ({
   id: row.id,
   userId: row.userId,
   deviceId: row.deviceId,
@@ -70,6 +76,11 @@ export function createSessionStore(db: Executor): SessionStore {
         .returning();
       if (row === undefined) throw new Error('session insert returned no row');
       return { session: toSession(row), refreshToken };
+    },
+
+    async find(sessionId) {
+      const row = await db.query.sessions.findFirst({ where: eq(sessions.id, sessionId) });
+      return row === undefined ? undefined : toSession(row);
     },
 
     //tx is the database handle for this transaction; if the function throws, every write inside is undone
@@ -134,6 +145,75 @@ export function createSessionStore(db: Executor): SessionStore {
         .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
         .returning({ id: sessions.id });
       return revoked.length;
+    },
+  };
+}
+
+// In-memory store with the same rules (rotation, reuse detection, revocation)
+// for the route tests, which must not need a database.
+export function memorySessionStore(): SessionStore {
+  interface Row extends Session {
+    refreshTokenHash: string;
+    previousRefreshTokenHash: string | null;
+    revokedAt: Date | null;
+  }
+  const rows = new Map<string, Row>();
+
+  return {
+    create(userId, deviceId, now) {
+      const refreshToken = generateRefreshToken();
+      const row: Row = {
+        id: uuidv7(),
+        userId,
+        deviceId,
+        refreshTokenHash: hashRefreshToken(refreshToken),
+        previousRefreshTokenHash: null,
+        expiresAt: new Date(now.getTime() + REFRESH_TOKEN_LIFETIME_MS),
+        revokedAt: null,
+      };
+      rows.set(row.id, row);
+      return Promise.resolve({ session: toSession(row), refreshToken });
+    },
+
+    find(sessionId) {
+      const row = rows.get(sessionId);
+      return Promise.resolve(row === undefined ? undefined : toSession(row));
+    },
+
+    rotate(refreshToken, now) {
+      const hash = hashRefreshToken(refreshToken);
+      const row = [...rows.values()].find(
+        (r) => r.refreshTokenHash === hash || r.previousRefreshTokenHash === hash,
+      );
+      if (row === undefined || row.revokedAt !== null || row.expiresAt <= now) {
+        return Promise.reject(new AppError('unauthenticated'));
+      }
+      if (row.previousRefreshTokenHash === hash) {
+        row.revokedAt = now;
+        return Promise.reject(new AppError('refresh_token_reused'));
+      }
+      const next = generateRefreshToken();
+      row.previousRefreshTokenHash = hash;
+      row.refreshTokenHash = hashRefreshToken(next);
+      row.expiresAt = new Date(now.getTime() + REFRESH_TOKEN_LIFETIME_MS);
+      return Promise.resolve({ session: toSession(row), refreshToken: next });
+    },
+
+    revoke(sessionId, now) {
+      const row = rows.get(sessionId);
+      if (row !== undefined && row.revokedAt === null) row.revokedAt = now;
+      return Promise.resolve();
+    },
+
+    revokeAllForUser(userId, now) {
+      let count = 0;
+      for (const row of rows.values()) {
+        if (row.userId === userId && row.revokedAt === null) {
+          row.revokedAt = now;
+          count += 1;
+        }
+      }
+      return Promise.resolve(count);
     },
   };
 }

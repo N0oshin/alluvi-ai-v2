@@ -8,6 +8,7 @@
 import type { FastifyPluginCallback } from 'fastify';
 import type { AppDependencies } from '../app.js';
 import { guestSessionRoutes } from '../modules/identity/guest-sessions.js';
+import { sessionRoutes } from '../modules/identity/sessions.js';
 
 export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
   return (app, _options, done) => {
@@ -18,6 +19,7 @@ export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
     });
 
     void app.register(guestSessionRoutes(deps));
+    void app.register(sessionRoutes(deps));
 
     done();
   };

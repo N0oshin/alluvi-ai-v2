@@ -4,6 +4,7 @@
 // launch. The first request from an install creates its row; every later one
 // finds the row and refreshes the app and OS versions. That is one statement,
 
+import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type { EnumValue } from './schema/enums.js';
 import type { Executor } from './idempotency-store.js';
@@ -32,6 +33,8 @@ export interface DeviceStore {
   register(registration: DeviceRegistration, now: Date): Promise<Device>;
   // Looks a device up by install id. Undefined when never seen.
   findByInstallId(installId: string): Promise<Device | undefined>;
+  // Log out: this phone must stop receiving the user's pushes.
+  clearPushToken(deviceId: string, now: Date): Promise<void>;
 }
 
 type Row = typeof devices.$inferSelect;
@@ -72,6 +75,13 @@ export function createDeviceStore(db: Executor): DeviceStore {
       });
       return row === undefined ? undefined : toDevice(row);
     },
+
+    async clearPushToken(deviceId, now) {
+      await db
+        .update(devices)
+        .set({ pushToken: null, updatedAt: now })
+        .where(eq(devices.id, deviceId));
+    },
   };
 }
 
@@ -94,6 +104,10 @@ export function memoryDeviceStore(): DeviceStore {
     },
     findByInstallId(installId) {
       return Promise.resolve(byInstallId.get(installId));
+    },
+    clearPushToken() {
+      // The memory device has no push token field to clear.
+      return Promise.resolve();
     },
   };
 }

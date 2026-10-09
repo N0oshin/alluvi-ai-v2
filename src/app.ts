@@ -5,6 +5,7 @@ import type { AccessTokenService } from './auth/access-token.js';
 import type { AccountStore } from './db/account-store.js';
 import type { DeviceStore } from './db/device-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
+import type { SessionStore } from './db/session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
 import { addErrorHandling } from './http/error-handler.js';
 import { addIdempotency, type IdempotencyStore } from './http/idempotency.js';
@@ -32,6 +33,8 @@ export type AppDependencies = HealthDependencies & {
   devices: DeviceStore;
   // Account creation and sign-in reads (Phase 2.3).
   accounts: AccountStore;
+  // Signed-in sessions: refresh and logout (Phase 2.3).
+  sessions: SessionStore;
 };
 
 // Idempotency keys are scoped to the caller. Anonymous callers share one

@@ -16,6 +16,7 @@ import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
+import { createSessionStore } from './db/session-store.js';
 import { loggerOptions } from './http/logging.js';
 import { jobs } from './jobs/definitions.js';
 import { createPgBoss } from './jobs/runner.js';
@@ -62,6 +63,7 @@ const app = buildApp(
     guestSessions: createGuestSessionStore(db),
     devices: createDeviceStore(db),
     accounts: createAccountStore(db),
+    sessions: createSessionStore(db),
   },
   { logger },
 );

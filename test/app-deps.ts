@@ -11,6 +11,7 @@ import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
 import { memoryAccountStore } from '../src/db/account-store.js';
 import { memoryDeviceStore } from '../src/db/device-store.js';
 import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
+import { memorySessionStore } from '../src/db/session-store.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
@@ -28,6 +29,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     guestSessions: memoryGuestSessionStore(),
     devices: memoryDeviceStore(),
     accounts: memoryAccountStore(),
+    sessions: memorySessionStore(),
     ...overrides,
   };
 }
