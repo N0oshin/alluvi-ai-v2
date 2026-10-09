@@ -2,6 +2,8 @@
 
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { AccessTokenService } from './auth/access-token.js';
+import type { GuestSessionStore } from './db/guest-session-store.js';
+import { addAuthentication, type Principal } from './http/auth.js';
 import { addErrorHandling } from './http/error-handler.js';
 import { addIdempotency, type IdempotencyStore } from './http/idempotency.js';
 import { RequestLogController } from './http/logging.js';
@@ -22,12 +24,24 @@ export type AppDependencies = HealthDependencies & {
   jobs: JobQueue<JobPayloads>;
   // The external services (vision, email, push, storage).
   providers: Providers;
-  // Issues and verifies access tokens (Phase 2.2). The authentication hook
-  // that reads them from requests is the next item.
+  // Issues and verifies access tokens; resolves guest tokens (Phase 2.2).
   accessTokens: AccessTokenService;
+  guestSessions: GuestSessionStore;
 };
 
-const PLACEHOLDER_SUBJECT = '00000000-0000-0000-0000-000000000000';
+// Idempotency keys are scoped to the caller. Anonymous callers share one
+// bucket; no idempotent route is expected to be public.
+const ANONYMOUS_SUBJECT = '00000000-0000-0000-0000-000000000000';
+function subjectOf(principal: Principal): string {
+  switch (principal.kind) {
+    case 'user':
+      return principal.userId;
+    case 'guest':
+      return principal.guestSessionId;
+    case 'anonymous':
+      return ANONYMOUS_SUBJECT;
+  }
+}
 
 export interface AppOptions {
   logger?: FastifyServerOptions['logger'];
@@ -44,9 +58,15 @@ export function buildApp(deps: AppDependencies, options: AppOptions = {}): Fasti
 
   addErrorHandling(app);
 
+  // Who is calling, before anything that depends on it.
+  addAuthentication(app, { accessTokens: deps.accessTokens, guestSessions: deps.guestSessions });
+
   addRateLimiting(app, { store: deps.rateLimitStore });
 
-  addIdempotency(app, { store: deps.idempotencyStore, subjectOf: () => PLACEHOLDER_SUBJECT });
+  addIdempotency(app, {
+    store: deps.idempotencyStore,
+    subjectOf: (request) => subjectOf(request.principal),
+  });
 
   void app.register(healthRoutes(deps), { prefix: '/health' });
 

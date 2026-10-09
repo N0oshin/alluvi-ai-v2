@@ -7,6 +7,7 @@
 // it cannot be claimed twice
 
 import { and, eq, isNull } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import {
   generateGuestToken,
   GUEST_TOKEN_LIFETIME_MS,
@@ -39,7 +40,11 @@ export interface GuestSessionStore {
 
 type Row = typeof guestSessions.$inferSelect;
 
-const toGuestSession = (row: Row): GuestSession => ({
+// Only the four fields it reads, so a row without timestamps (the memory
+// store below) is accepted too. `Pick` is TypeScript notes entry 32.
+type RowFields = Pick<Row, 'id' | 'deviceId' | 'claimedByUserId' | 'expiresAt'>;
+
+const toGuestSession = (row: RowFields): GuestSession => ({
   id: row.id,
   deviceId: row.deviceId,
   claimedByUserId: row.claimedByUserId,
@@ -99,6 +104,48 @@ export function createGuestSessionStore(db: Database): GuestSessionStore {
         where: eq(guestSessions.id, guestSessionId),
       });
       throw new AppError(existing === undefined ? 'unauthenticated' : 'conflict');
+    },
+  };
+}
+
+// In-memory store with the same rules, for tests and for running the app
+// without a database.
+export function memoryGuestSessionStore(): GuestSessionStore {
+  const rows = new Map<string, GuestSession & { tokenHash: string }>();
+
+  return {
+    create(deviceId, now) {
+      const guestToken = generateGuestToken();
+      const row = {
+        id: uuidv7(),
+        deviceId,
+        tokenHash: hashGuestToken(guestToken),
+        claimedByUserId: null,
+        expiresAt: new Date(now.getTime() + GUEST_TOKEN_LIFETIME_MS),
+      };
+      rows.set(row.id, row);
+      return Promise.resolve({ guestSession: toGuestSession(row), guestToken });
+    },
+
+    resolve(guestToken, now) {
+      const hash = hashGuestToken(guestToken);
+      const row = [...rows.values()].find((candidate) => candidate.tokenHash === hash);
+      if (row === undefined || row.claimedByUserId !== null || row.expiresAt <= now) {
+        return Promise.reject(new AppError('unauthenticated'));
+      }
+      return Promise.resolve(toGuestSession(row));
+    },
+
+    claim(guestSessionId, userId, now) {
+      const row = rows.get(guestSessionId);
+      if (row === undefined || row.expiresAt <= now) {
+        return Promise.reject(new AppError('unauthenticated'));
+      }
+      if (row.claimedByUserId !== null) {
+        return Promise.reject(new AppError('conflict'));
+      }
+      row.claimedByUserId = userId;
+      return Promise.resolve(toGuestSession(row));
     },
   };
 }

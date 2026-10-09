@@ -10,6 +10,7 @@ import {
   ephemeralAccessTokenService,
   type AccessTokenService,
 } from './auth/access-token.js';
+import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
@@ -56,6 +57,7 @@ const app = buildApp(
     jobs: queue.queue,
     providers: buildProviders(config),
     accessTokens,
+    guestSessions: createGuestSessionStore(db),
   },
   { logger },
 );

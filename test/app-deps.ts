@@ -8,6 +8,7 @@
 
 import type { AppDependencies } from '../src/app.js';
 import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
+import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
@@ -22,6 +23,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     jobs: memoryJobQueue<JobPayloads>(),
     providers: fakeProviders(),
     accessTokens: ephemeralAccessTokenService(),
+    guestSessions: memoryGuestSessionStore(),
     ...overrides,
   };
 }
