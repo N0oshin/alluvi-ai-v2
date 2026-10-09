@@ -9,6 +9,9 @@
 export const ERROR_CODES = {
   malformed_request: { status: 400, message: 'The request could not be read.' },
   unauthenticated: { status: 401, message: 'Sign in to continue.' },
+  // A rotated refresh token was presented again; the session has been revoked
+  // (document 02 section 4.4, backend notes entry 39).
+  refresh_token_reused: { status: 401, message: 'Your session has ended. Sign in again.' },
   forbidden: { status: 403, message: 'You are not allowed to do this.' },
   not_found: { status: 404, message: 'The resource was not found.' },
   conflict: { status: 409, message: 'The request conflicts with the current state.' },

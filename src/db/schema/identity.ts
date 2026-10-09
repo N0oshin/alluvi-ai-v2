@@ -121,18 +121,24 @@ export const sessions = pgTable(
       .notNull()
       .references(() => devices.id, { onDelete: 'cascade' }),
     refreshTokenHash: text().notNull(),
+    previousRefreshTokenHash: text(),
     expiresAt: instant().notNull(),
     revokedAt: instant(),
   },
   (table) => [
     // The refresh endpoint looks a session up by the hash of the token it was given.
     uniqueIndex('sessions_refresh_token_hash').on(table.refreshTokenHash),
+    index('sessions_previous_refresh_token_hash').on(table.previousRefreshTokenHash),
     // "Log out everywhere" and "list my sessions" read only the live ones.
     index('sessions_user_id_live')
       .on(table.userId)
       .where(sql`${table.revokedAt} is null`),
     index('sessions_device_id').on(table.deviceId),
     check('sessions_refresh_token_hash_format', sql`${table.refreshTokenHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'sessions_previous_refresh_token_hash_format',
+      sql`${table.previousRefreshTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
   ],
 );
 

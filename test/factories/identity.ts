@@ -61,14 +61,15 @@ export const device = defineFactory(devices, () => ({
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// A live session, valid for 30 days. Both foreign keys default to random ids,
-// so `create` needs a real user and device:
+// A live session, valid for 60 days, never refreshed yet. Both foreign keys
+// default to random ids, so `create` needs a real user and device:
 //   await factories.session.create({ userId: u.id, deviceId: d.id });
 export const session = defineFactory(sessions, () => ({
   userId: uuidv7(),
   deviceId: uuidv7(),
   refreshTokenHash: createHash('sha256').update(`refresh ${nextSequence()}`).digest('hex'),
-  expiresAt: new Date(Date.now() + 30 * DAY_MS),
+  previousRefreshTokenHash: null,
+  expiresAt: new Date(Date.now() + 60 * DAY_MS),
   revokedAt: null,
 }));
 

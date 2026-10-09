@@ -318,6 +318,7 @@ describe('sessions', () => {
         'userId',
         'deviceId',
         'refreshTokenHash',
+        'previousRefreshTokenHash',
         'expiresAt',
         'revokedAt',
       ].sort(),
@@ -345,10 +346,14 @@ describe('sessions', () => {
       config.indexes.map((i) => [i.config.name, i.config.unique, i.config.where !== undefined]),
     ).toEqual([
       ['sessions_refresh_token_hash', true, false],
+      ['sessions_previous_refresh_token_hash', false, false],
       ['sessions_user_id_live', false, true],
       ['sessions_device_id', false, false],
     ]);
-    expect(config.checks.map((c) => c.name)).toEqual(['sessions_refresh_token_hash_format']);
+    expect(config.checks.map((c) => c.name).sort()).toEqual([
+      'sessions_previous_refresh_token_hash_format',
+      'sessions_refresh_token_hash_format',
+    ]);
   });
 });
 

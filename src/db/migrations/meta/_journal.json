@@ -64,6 +64,13 @@
       "when": 1791457979311,
       "tag": "0008_user_consents",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791535712241,
+      "tag": "0009_sessions_previous_refresh_token_hash",
+      "breakpoints": true
     }
   ]
 }
