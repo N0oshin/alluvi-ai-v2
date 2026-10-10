@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastif
 import type { AccessTokenService } from './auth/access-token.js';
 import type { AccountStore } from './db/account-store.js';
 import type { DeviceStore } from './db/device-store.js';
+import type { EmailSuppressionStore } from './db/email-suppression-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
 import type { MagicLinkStore } from './db/magic-link-store.js';
 import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
@@ -19,6 +20,8 @@ import type { JobQueue } from './jobs/queue.js';
 import type { Providers } from './providers/index.js';
 import { healthRoutes, type HealthDependencies } from './routes/health.js';
 import { v1Routes } from './routes/v1.js';
+import { webhookRoutes } from './routes/webhooks.js';
+import { wellKnownRoutes, type AppLinkConfig } from './routes/well-known.js';
 
 // Everything the app needs from the outside world (database, and later
 // storage, email and so on).
@@ -43,6 +46,12 @@ export type AppDependencies = HealthDependencies & {
   // Apple and Google identity token verifiers, each absent when not
   // configured (Phase 2.3).
   identityTokens: IdentityTokenVerifiers;
+  // Addresses that bounced or complained; written by the Resend webhook,
+  // checked before sending (Phase 2.3).
+  emailSuppressions: EmailSuppressionStore;
+  resendWebhookSecret: string | undefined;
+  // Universal Link / App Link files (Phase 2.3).
+  appLinks: AppLinkConfig;
 };
 
 // Idempotency keys are scoped to the caller. Anonymous callers share one
@@ -86,6 +95,8 @@ export function buildApp(deps: AppDependencies, options: AppOptions = {}): Fasti
   });
 
   void app.register(healthRoutes(deps), { prefix: '/health' });
+  void app.register(webhookRoutes(deps), { prefix: '/webhooks' });
+  void app.register(wellKnownRoutes(deps), { prefix: '/.well-known' });
 
   // Every route inside v1Routes gets "/v1" in front of its path.
   void app.register(v1Routes(deps), { prefix: '/v1' });

@@ -57,6 +57,20 @@ const rawSchema = z.object({
   // so on. Optional outside production: unset, the route answers 503.
   APPLE_CLIENT_IDS: commaList,
   GOOGLE_CLIENT_IDS: commaList,
+  // Universal Links (iOS) and App Links (Android): what lets a tap on the
+  // magic link open the app. Served at /.well-known/... once set; each file
+  // is 404 until its values are present.
+  APPLE_TEAM_ID: z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, 'must be the 10 character Team ID')
+    .optional(),
+  // Defaults to the first APPLE_CLIENT_IDS entry, which is the bundle id for
+  // native Sign in with Apple.
+  IOS_BUNDLE_ID: z.string().min(1).optional(),
+  ANDROID_PACKAGE_NAME: z.string().min(1).optional(),
+  // SHA-256 fingerprints of the signing certificates, "AA:BB:...", comma
+  // separated (debug and Play Store signing differ).
+  ANDROID_CERT_SHA256: commaList,
   FOOD_VISION_PROVIDER: z.enum(FOOD_VISION_PROVIDERS).default('fake'),
   EMAIL_PROVIDER: z.enum(EMAIL_PROVIDERS).default('fake'),
   // Resend (EMAIL_PROVIDER=resend). The key from the Resend dashboard, and
@@ -64,6 +78,9 @@ const rawSchema = z.object({
   // verified there. Both required when resend is selected.
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(3).max(320).optional(),
+  // The signing secret of the Resend webhook (Webhooks page, "whsec_...").
+  // Optional: without it POST /webhooks/resend answers 503.
+  RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   PUSH_PROVIDER: z.enum(PUSH_PROVIDERS).default('fake'),
   STORAGE_PROVIDER: z.enum(STORAGE_PROVIDERS).default('fake'),
   // The access token signing keys as a JSON array (src/auth/keys.ts). The

@@ -13,6 +13,7 @@ import {
 import { APPLE, createIdentityTokenVerifier, GOOGLE } from './auth/identity-token.js';
 import { createAccountStore } from './db/account-store.js';
 import { createDeviceStore } from './db/device-store.js';
+import { createEmailSuppressionStore } from './db/email-suppression-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
@@ -79,6 +80,15 @@ const app = buildApp(
     magicLinks: createMagicLinkStore(db),
     magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
     identityTokens,
+    emailSuppressions: createEmailSuppressionStore(db),
+    resendWebhookSecret: config.RESEND_WEBHOOK_SECRET,
+    appLinks: {
+      appleTeamId: config.APPLE_TEAM_ID,
+      iosBundleId: config.IOS_BUNDLE_ID ?? config.APPLE_CLIENT_IDS?.[0],
+      androidPackageName: config.ANDROID_PACKAGE_NAME,
+      androidCertSha256: config.ANDROID_CERT_SHA256,
+      linkPath: new URL(config.MAGIC_LINK_BASE_URL).pathname,
+    },
   },
   { logger },
 );
