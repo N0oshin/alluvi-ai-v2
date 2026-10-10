@@ -17,6 +17,7 @@ import {
 } from '../../auth/magic-link-token.js';
 import type { AccountStore } from '../../db/account-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
+import type { EmailSuppressionStore } from '../../db/email-suppression-store.js';
 import type { MagicLinkStore } from '../../db/magic-link-store.js';
 import { magicIntentEnum } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
@@ -34,6 +35,7 @@ export interface MagicLinkRouteDependencies {
   accounts: AccountStore;
   accessTokens: AccessTokenService;
   email: EmailProvider;
+  emailSuppressions: EmailSuppressionStore;
   // MAGIC_LINK_BASE_URL; the token is appended as ?token=...
   magicLinkBaseUrl: string;
   now?: () => Date;
@@ -110,6 +112,11 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
         const email = normalizeEmail(body.email);
         const device = await deviceFor(body.device_install_id);
         const at = now();
+
+        // An address that bounced or complained gets no more mail from us.
+        if (await deps.emailSuppressions.isSuppressed(email)) {
+          throw new AppError('email_undeliverable');
+        }
 
         // Screen 128: signing in to an address with no account says so.
         if (body.intent === 'sign_in') {

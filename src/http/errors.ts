@@ -42,6 +42,12 @@ export const ERROR_CODES = {
   unsupported_media_type: { status: 415, message: 'The content type is not supported.' },
   validation_failed: { status: 422, message: 'One or more fields are invalid.' },
   invalid_email: { status: 422, message: 'Enter a valid email address.' },
+  // Mail to this address bounced or was reported as spam; we no longer send
+  // there (decision 39).
+  email_undeliverable: {
+    status: 422,
+    message: "We can't deliver email to this address. Try another sign-in method.",
+  },
   // `terms_and_privacy` consent missing or not granted on account creation.
   consent_required: {
     status: 422,

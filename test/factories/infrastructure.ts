@@ -2,7 +2,13 @@
 
 import { createHash } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
-import { auditLog, idempotencyKeys, outbox, rateLimitCounters } from '../../src/db/schema/index.js';
+import {
+  auditLog,
+  emailSuppressions,
+  idempotencyKeys,
+  outbox,
+  rateLimitCounters,
+} from '../../src/db/schema/index.js';
 import { defineFactory, nextSequence } from './define.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +40,14 @@ export const outboxEvent = defineFactory(outbox, () => ({
   aggregateType: 'meal',
   aggregateId: uuidv7(),
   payload: { sequence: nextSequence() },
+}));
+
+// An address that hard-bounced.
+export const emailSuppression = defineFactory(emailSuppressions, () => ({
+  email: `bounced${nextSequence()}@example.com`,
+  reason: 'bounce',
+  providerEventId: `evt_${uuidv7()}`,
+  lastEventAt: new Date(),
 }));
 
 // A counter with one hit in the current minute.

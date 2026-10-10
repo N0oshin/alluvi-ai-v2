@@ -110,6 +110,24 @@ describe('POST /v1/auth/email/magic-links', () => {
     });
   });
 
+  it('refuses an address that bounced or complained with email_undeliverable', async () => {
+    const { app, deps, email } = await setup();
+    await deps.emailSuppressions.suppress({
+      email: 'gone@example.com',
+      reason: 'bounce',
+      providerEventId: null,
+      at: new Date(),
+    });
+    const response = await request(app, {
+      email: 'Gone@Example.com',
+      intent: 'sign_up',
+      device_install_id: install,
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorBody>().error.code).toBe('email_undeliverable');
+    expect(email.sent).toHaveLength(0);
+  });
+
   it('enforces the 30 second cooldown per address', async () => {
     const { app } = await setup();
     const body = { email: 'a@example.com', intent: 'sign_up', device_install_id: install };
