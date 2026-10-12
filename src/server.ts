@@ -16,6 +16,7 @@ import { createAuditStore } from './db/audit-store.js';
 import { createDeviceStore } from './db/device-store.js';
 import { createEmailSuppressionStore } from './db/email-suppression-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
+import { createOnboardingStore } from './db/onboarding-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
 import { createMagicLinkStore } from './db/magic-link-store.js';
@@ -79,6 +80,7 @@ const app = buildApp(
     accounts: createAccountStore(db),
     sessions: createSessionStore(db),
     audit: createAuditStore(db),
+    onboarding: createOnboardingStore(db),
     magicLinks: createMagicLinkStore(db),
     magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
     identityTokens,

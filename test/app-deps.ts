@@ -14,6 +14,7 @@ import { memoryDeviceStore } from '../src/db/device-store.js';
 import { memoryEmailSuppressionStore } from '../src/db/email-suppression-store.js';
 import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
 import { memoryMagicLinkStore } from '../src/db/magic-link-store.js';
+import { memoryOnboardingStore } from '../src/db/onboarding-store.js';
 import { memorySessionStore } from '../src/db/session-store.js';
 import { memoryIdempotencyStore } from '../src/http/idempotency.js';
 import { memoryRateLimitStore } from '../src/http/rate-limit.js';
@@ -35,6 +36,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     sessions: memorySessionStore(),
     audit: memoryAuditStore(),
     magicLinks: memoryMagicLinkStore(),
+    onboarding: memoryOnboardingStore(),
     magicLinkBaseUrl: 'https://app.test/auth/magic-link',
     // Not configured by default; the social sign-in tests build verifiers
     // over a local key pair and pass them in.

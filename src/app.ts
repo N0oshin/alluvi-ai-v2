@@ -8,6 +8,7 @@ import type { DeviceStore } from './db/device-store.js';
 import type { EmailSuppressionStore } from './db/email-suppression-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
 import type { MagicLinkStore } from './db/magic-link-store.js';
+import type { OnboardingStore } from './db/onboarding-store.js';
 import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
 import type { SessionStore } from './db/session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
@@ -46,6 +47,8 @@ export type AppDependencies = HealthDependencies & {
   magicLinkBaseUrl: string;
   // Append-only record of sign-ins, failures, logouts and consents (Phase 2.4).
   audit: AuditStore;
+  // Questionnaire answers for guests and users (Phase 3.2).
+  onboarding: OnboardingStore;
   // Apple and Google identity token verifiers, each absent when not
   // configured (Phase 2.3).
   identityTokens: IdentityTokenVerifiers;
