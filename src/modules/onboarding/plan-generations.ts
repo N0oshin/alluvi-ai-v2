@@ -1,12 +1,17 @@
-// POST /v1/onboarding/plan-generations. Starts the
-// plan and answers at once with a generation
-// the app polls. The calculation itself runs in the worker.
+// POST /v1/onboarding/plan-generations (document 02 section 3.4) starts a plan
+// build and answers at once with a generation the app polls. The calculation
+// itself runs in the worker.
+//
+// GET /v1/onboarding/plan-generations/{id} (section 3.5) is that poll: screens
+// 113 to 115 read it about once a second, and screen 116 reads the result.
 
 import type { FastifyPluginCallback } from 'fastify';
+import { z } from 'zod';
 import type { OnboardingStore } from '../../db/onboarding-store.js';
 import type { PlanGeneration, PlanGenerationStore } from '../../db/plan-generation-store.js';
 import { planStepEnum } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
+import { validate } from '../../http/validate.js';
 import type { JobPayloads } from '../../jobs/definitions.js';
 import type { JobQueue } from '../../jobs/queue.js';
 import { ownerOf } from './owner.js';
@@ -32,6 +37,19 @@ export function toPlanGenerationBody(generation: PlanGeneration) {
     })),
   };
 }
+
+// What the poll returns: the same body as the POST, plus the plan once it is
+// completed and the failure code once it has failed. Both keys are always
+// present (null when not applicable) so the client reads one shape.
+export function toPlanGenerationDetailBody(generation: PlanGeneration) {
+  return {
+    ...toPlanGenerationBody(generation),
+    result: generation.status === 'completed' ? generation.result : null,
+    failure_code: generation.status === 'failed' ? generation.failureCode : null,
+  };
+}
+
+const paramsSchema = z.strictObject({ id: z.uuid() });
 
 export function planGenerationRoutes(deps: PlanGenerationRouteDependencies): FastifyPluginCallback {
   const now = deps.now ?? (() => new Date());
@@ -73,6 +91,30 @@ export function planGenerationRoutes(deps: PlanGenerationRouteDependencies): Fas
           { singletonKey: generation.id },
         );
         return reply.code(202).send(toPlanGenerationBody(generation));
+      },
+    );
+
+    app.get(
+      '/onboarding/plan-generations/:id',
+      { config: { auth: 'user_or_guest' } },
+      async (request, reply) => {
+        const { id } = validate(paramsSchema, request.params);
+
+        // A generation is readable only by whoever owns the answers it was
+        // built from. Anyone else, and an id that does not exist, get the same
+        // 404, so an id cannot be used to find out what exists.
+        const [mine, generation] = await Promise.all([
+          deps.onboarding.find(ownerOf(request)),
+          deps.planGenerations.findById(id),
+        ]);
+        if (mine === null || generation === null || generation.onboardingResponseId !== mine.id) {
+          throw new AppError('not_found');
+        }
+
+        // The status changes every second while it is polled; a cached copy
+        // would show 24% for ever.
+        reply.header('Cache-Control', 'no-store');
+        return toPlanGenerationDetailBody(generation);
       },
     );
 
