@@ -83,6 +83,39 @@ describeWithDatabase('createOnboardingStore', () => {
     expect(rows[0]?.guestSessionId).toBeNull();
   });
 
+  it('sets, keeps and clears completed_at as the fourth argument says', async () => {
+    const g = await guest();
+    const owner = { guestSessionId: g.id };
+    const done = new Date('2026-10-12T12:00:00Z');
+
+    const set = await store().save(owner, { sex: 'female' }, new Date(), done);
+    expect(set.completedAt?.getTime()).toBe(done.getTime());
+
+    // Left out: unchanged.
+    const kept = await store().save(owner, { goal: 'lose' }, new Date());
+    expect(kept.completedAt?.getTime()).toBe(done.getTime());
+
+    // null: cleared.
+    const cleared = await store().save(owner, {}, new Date(), null);
+    expect(cleared.completedAt).toBeNull();
+  });
+
+  it('finds a saved row by guest session or by user, and null when there is none', async () => {
+    const g = await guest();
+    expect(await store().find({ guestSessionId: g.id })).toBeNull();
+
+    await store().save({ guestSessionId: g.id }, { goal: 'lose', weightKg: 72.6 }, new Date());
+    expect(await store().find({ guestSessionId: g.id })).toMatchObject({
+      goal: 'lose',
+      weightKg: 72.6,
+    });
+
+    const user = await factories.user.create();
+    expect(await store().find({ userId: user.id })).toBeNull();
+    await store().save({ userId: user.id }, { goal: 'gain' }, new Date());
+    expect(await store().find({ userId: user.id })).toMatchObject({ goal: 'gain' });
+  });
+
   it('survives two saves arriving at the same time', async () => {
     const g = await guest();
     await Promise.all([

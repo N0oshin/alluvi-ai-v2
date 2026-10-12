@@ -6,6 +6,7 @@
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type {
+  OnboardingAnswers,
   OnboardingOwner,
   OnboardingResponse,
   OnboardingStore,
@@ -21,12 +22,21 @@ import {
 } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
 import { validate } from '../../http/validate.js';
+import {
+  birthDateProblem,
+  missingAnswers,
+  roundTo,
+  TARGET_WEIGHT_MESSAGES,
+  targetWeightMatchesGoal,
+} from './rules.js';
 
 export interface OnboardingRouteDependencies {
   onboarding: OnboardingStore;
   now?: () => Date;
 }
 
+// The bounds are the database's CHECK constraints (document 01 section 4.2),
+// repeated here so a bad value is a 422 naming the field, not a 500.
 const bodySchema = z.strictObject({
   sex: z.enum(sexEnum.enumValues).optional(),
   workout_frequency: z.enum(workoutFrequencyEnum.enumValues).optional(),
@@ -34,11 +44,11 @@ const bodySchema = z.strictObject({
   acquisition_source: z.enum(acquisitionSourceEnum.enumValues).optional(),
   tried_other_apps: z.boolean().optional(),
   unit_system: z.enum(unitSystemEnum.enumValues).optional(),
-  height_cm: z.number().optional(),
-  weight_kg: z.number().optional(),
+  height_cm: z.number().min(90).max(250).optional(),
+  weight_kg: z.number().min(20).max(400).optional(),
   works_with_professional: z.boolean().optional(),
   goal: z.enum(weightGoalDirectionEnum.enumValues).optional(),
-  target_weight_kg: z.number().optional(),
+  target_weight_kg: z.number().min(20).max(400).optional(),
   obstacle: z.enum(obstacleEnum.enumValues).optional(),
   motivation: z.enum(motivationEnum.enumValues).optional(),
   sync_workouts: z.boolean().optional(),
@@ -79,8 +89,14 @@ function toBody(response: OnboardingResponse) {
     add_burned_calories: response.addBurnedCalories,
     rollover_calories: response.rolloverCalories,
     completed_at: response.completedAt?.toISOString() ?? null,
+    // The required answers still empty, in screen order, named as the API names
+    // them (heightCm becomes height_cm). Empty means ready for a plan.
+    missing_fields: missingAnswers(response).map(toSnakeCase),
   };
 }
+
+const toSnakeCase = (name: string): string =>
+  name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 export function onboardingResponseRoutes(deps: OnboardingRouteDependencies): FastifyPluginCallback {
   const now = deps.now ?? (() => new Date());
@@ -90,29 +106,91 @@ export function onboardingResponseRoutes(deps: OnboardingRouteDependencies): Fas
     // the route does not ask for an Idempotency-Key.
     app.put('/onboarding/responses', { config: { auth: 'user_or_guest' } }, async (request) => {
       const body = validate(bodySchema, request.body);
-      const saved = await deps.onboarding.save(
-        ownerOf(request),
-        {
-          sex: body.sex,
-          workoutFrequency: body.workout_frequency,
-          birthDate: body.birth_date,
-          acquisitionSource: body.acquisition_source,
-          triedOtherApps: body.tried_other_apps,
-          unitSystem: body.unit_system,
-          heightCm: body.height_cm,
-          weightKg: body.weight_kg,
-          worksWithProfessional: body.works_with_professional,
-          goal: body.goal,
-          targetWeightKg: body.target_weight_kg,
-          obstacle: body.obstacle,
-          motivation: body.motivation,
-          syncWorkouts: body.sync_workouts,
-          addBurnedCalories: body.add_burned_calories,
-          rolloverCalories: body.rollover_calories,
-        },
-        now(),
-      );
-      return toBody(saved);
+      const at = now();
+      const owner = ownerOf(request);
+
+      if (body.birth_date !== undefined) {
+        const problem = birthDateProblem(body.birth_date, at.toISOString().slice(0, 10));
+        if (problem !== null) {
+          throw new AppError('validation_failed', [
+            {
+              field: 'birth_date',
+              code: 'out_of_range',
+              message:
+                problem === 'in_future'
+                  ? 'Birth date cannot be in the future.'
+                  : 'Enter a birth date from 1900 onwards.',
+            },
+          ]);
+        }
+      }
+
+      // Weights and height are rounded to what the columns keep before they are
+      // compared or stored, so the consistency rule sees the stored values.
+      const answers: OnboardingAnswers = {
+        sex: body.sex,
+        workoutFrequency: body.workout_frequency,
+        birthDate: body.birth_date,
+        acquisitionSource: body.acquisition_source,
+        triedOtherApps: body.tried_other_apps,
+        unitSystem: body.unit_system,
+        heightCm: body.height_cm === undefined ? undefined : roundTo(body.height_cm, 2),
+        weightKg: body.weight_kg === undefined ? undefined : roundTo(body.weight_kg, 1),
+        worksWithProfessional: body.works_with_professional,
+        goal: body.goal,
+        targetWeightKg:
+          body.target_weight_kg === undefined ? undefined : roundTo(body.target_weight_kg, 1),
+        obstacle: body.obstacle,
+        motivation: body.motivation,
+        syncWorkouts: body.sync_workouts,
+        addBurnedCalories: body.add_burned_calories,
+        rolloverCalories: body.rollover_calories,
+      };
+
+      // Answers arrive one screen at a time, so both rules below are judged on
+      // the required answers as they will be after this request: the new value
+      // where one was sent, the stored one otherwise.
+      const stored = await deps.onboarding.find(owner);
+      const after = {
+        sex: answers.sex ?? stored?.sex ?? null,
+        workoutFrequency: answers.workoutFrequency ?? stored?.workoutFrequency ?? null,
+        birthDate: answers.birthDate ?? stored?.birthDate ?? null,
+        unitSystem: answers.unitSystem ?? stored?.unitSystem ?? null,
+        heightCm: answers.heightCm ?? stored?.heightCm ?? null,
+        weightKg: answers.weightKg ?? stored?.weightKg ?? null,
+        targetWeightKg: answers.targetWeightKg ?? stored?.targetWeightKg ?? null,
+        goal: answers.goal ?? stored?.goal ?? null,
+      };
+
+      // Goal against weights. Runs only when this request touches one of the
+      // three, so an unrelated screen is never blocked by an older
+      // inconsistency.
+      const touchesTarget =
+        answers.goal !== undefined ||
+        answers.weightKg !== undefined ||
+        answers.targetWeightKg !== undefined;
+      if (
+        touchesTarget &&
+        after.goal !== null &&
+        after.weightKg !== null &&
+        after.targetWeightKg !== null &&
+        !targetWeightMatchesGoal(after.goal, after.weightKg, after.targetWeightKg)
+      ) {
+        throw new AppError('target_weight_inconsistent', [
+          {
+            field: 'target_weight_kg',
+            code: 'target_weight_inconsistent',
+            message: TARGET_WEIGHT_MESSAGES[after.goal],
+          },
+        ]);
+      }
+
+      // Complete when no required answer is missing. The time is kept from the
+      // first request that completed it; null if the required list ever grows
+      // and an old row is no longer complete (decision 44).
+      const completedAt = missingAnswers(after).length === 0 ? (stored?.completedAt ?? at) : null;
+
+      return toBody(await deps.onboarding.save(owner, answers, at, completedAt));
     });
 
     done();

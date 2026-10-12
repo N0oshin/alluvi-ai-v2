@@ -192,4 +192,214 @@ describe('PUT /v1/onboarding/responses', () => {
     const { headers } = await guestWith(deps);
     expect((await put(app, headers)).statusCode).toBe(422);
   });
+
+  it('answers 422 out_of_range, naming the field, for height and weights outside the bounds', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+    const { headers } = await guestWith(deps);
+
+    for (const body of [
+      { height_cm: 89 },
+      { height_cm: 251 },
+      { weight_kg: 19.9 },
+      { weight_kg: 400.1 },
+      { target_weight_kg: 5 },
+    ]) {
+      const response = await put(app, headers, body);
+      expect(response.statusCode).toBe(422);
+      const { error } = response.json<ErrorBody>();
+      expect(error.code).toBe('validation_failed');
+      expect(error.details).toHaveLength(1);
+      expect(error.details[0]).toMatchObject({
+        field: Object.keys(body)[0],
+        code: 'out_of_range',
+      });
+    }
+    // The edges themselves are fine.
+    expect(
+      (await put(app, headers, { height_cm: 90, weight_kg: 20, target_weight_kg: 400 })).statusCode,
+    ).toBe(200);
+  });
+
+  it('accepts any real birth date from 1900 to today, with no minimum age', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+    const { headers } = await guestWith(deps);
+    const today = new Date().toISOString().slice(0, 10);
+
+    for (const birth_date of ['1900-01-01', '1998-03-14', '2024-01-01', today]) {
+      expect((await put(app, headers, { birth_date })).statusCode).toBe(200);
+    }
+  });
+
+  it('refuses a birth date before 1900 or in the future', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+    const { headers } = await guestWith(deps);
+
+    for (const birth_date of ['1899-12-31', '2999-01-01']) {
+      const response = await put(app, headers, { birth_date });
+      expect(response.statusCode).toBe(422);
+      const { error } = response.json<ErrorBody>();
+      expect(error.code).toBe('validation_failed');
+      expect(error.details[0]).toMatchObject({ field: 'birth_date', code: 'out_of_range' });
+    }
+  });
+
+  describe('missing_fields and completed_at', () => {
+    const everyRequired = {
+      sex: 'female',
+      workout_frequency: '3_5',
+      birth_date: '1998-03-14',
+      unit_system: 'metric',
+      height_cm: 170.2,
+      weight_kg: 72.6,
+      target_weight_kg: 65,
+      goal: 'lose',
+    };
+
+    async function setup() {
+      const deps = fakeDeps();
+      return { app: buildApp(deps), ...(await guestWith(deps)) };
+    }
+
+    it('lists all eight in screen order for a new guest', async () => {
+      const { app, headers } = await setup();
+      const body = (await put(app, headers, {})).json<AnswersBody>();
+      expect(body['missing_fields']).toEqual([
+        'sex',
+        'workout_frequency',
+        'birth_date',
+        'unit_system',
+        'height_cm',
+        'weight_kg',
+        'target_weight_kg',
+        'goal',
+      ]);
+      expect(body['completed_at']).toBeNull();
+    });
+
+    it('shrinks as screens are saved, using the API names', async () => {
+      const { app, headers } = await setup();
+      await put(app, headers, { sex: 'female', height_cm: 170.2 });
+      const body = (await put(app, headers, { goal: 'lose' })).json<AnswersBody>();
+      expect(body['missing_fields']).toEqual([
+        'workout_frequency',
+        'birth_date',
+        'unit_system',
+        'weight_kg',
+        'target_weight_kg',
+      ]);
+    });
+
+    it('is empty and sets completed_at when the last required answer arrives', async () => {
+      const { app, headers } = await setup();
+      const { goal, ...allButGoal } = everyRequired;
+      const before = (await put(app, headers, allButGoal)).json<AnswersBody>();
+      expect(before['missing_fields']).toEqual(['goal']);
+      expect(before['completed_at']).toBeNull();
+
+      const after = (await put(app, headers, { goal })).json<AnswersBody>();
+      expect(after['missing_fields']).toEqual([]);
+      expect(typeof after['completed_at']).toBe('string');
+    });
+
+    it('does not need the optional answers, and keeps the first completed_at', async () => {
+      const { app, headers } = await setup();
+      const first = (await put(app, headers, everyRequired)).json<AnswersBody>();
+      expect(first['missing_fields']).toEqual([]);
+      expect(first['obstacle']).toBeNull();
+
+      const second = (await put(app, headers, { obstacle: 'consistency' })).json<AnswersBody>();
+      expect(second['completed_at']).toBe(first['completed_at']);
+    });
+
+    it('returns the same missing_fields on a plain read as on the last save', async () => {
+      const { app, headers } = await setup();
+      await put(app, headers, everyRequired);
+      const read = (await put(app, headers, {})).json<AnswersBody>();
+      expect(read['missing_fields']).toEqual([]);
+    });
+  });
+
+  describe('target weight consistency', () => {
+    async function setup() {
+      const deps = fakeDeps();
+      const app = buildApp(deps);
+      const { headers } = await guestWith(deps);
+      return { app, headers };
+    }
+
+    it('refuses a goal that contradicts weights saved earlier, whichever screen comes last', async () => {
+      // The real order: weight and target come before the goal screen.
+      const a = await setup();
+      await put(a.app, a.headers, { weight_kg: 72.6, target_weight_kg: 80 });
+      const r1 = await put(a.app, a.headers, { goal: 'lose' });
+      expect(r1.statusCode).toBe(422);
+      expect(r1.json<ErrorBody>().error.code).toBe('target_weight_inconsistent');
+      expect(r1.json<ErrorBody>().error.details[0]).toMatchObject({ field: 'target_weight_kg' });
+
+      // And the other direction: goal first, then a contradicting target.
+      const b = await setup();
+      await put(b.app, b.headers, { weight_kg: 72.6, goal: 'gain' });
+      const r2 = await put(b.app, b.headers, { target_weight_kg: 65 });
+      expect(r2.statusCode).toBe(422);
+      expect(r2.json<ErrorBody>().error.code).toBe('target_weight_inconsistent');
+    });
+
+    it('accepts a consistent set, and a change of mind that is still consistent', async () => {
+      const { app, headers } = await setup();
+      await put(app, headers, { weight_kg: 72.6, target_weight_kg: 65 });
+      expect((await put(app, headers, { goal: 'lose' })).statusCode).toBe(200);
+      // Raising the target while still below the current weight is fine.
+      expect((await put(app, headers, { target_weight_kg: 70 })).statusCode).toBe(200);
+      // Changing weight and goal together is judged on the result: a goal of
+      // gain at 60 kg with a target of 70 kg is consistent, although the same
+      // weight alone (goal still lose) would not be.
+      expect((await put(app, headers, { weight_kg: 60 })).statusCode).toBe(422);
+      expect((await put(app, headers, { weight_kg: 60, goal: 'gain' })).statusCode).toBe(200);
+    });
+
+    it('does not save anything from a refused request', async () => {
+      const { app, headers } = await setup();
+      await put(app, headers, { weight_kg: 72.6, target_weight_kg: 80 });
+      const refused = await put(app, headers, { goal: 'lose', obstacle: 'support' });
+      expect(refused.statusCode).toBe(422);
+
+      const stored = (await put(app, headers, {})).json<AnswersBody>();
+      expect(stored['goal']).toBeNull();
+      expect(stored['obstacle']).toBeNull();
+    });
+
+    it('requires the same weight for maintain, comparing at the stored precision', async () => {
+      const { app, headers } = await setup();
+      await put(app, headers, { weight_kg: 60, goal: 'maintain' });
+      expect((await put(app, headers, { target_weight_kg: 65 })).statusCode).toBe(422);
+      // 60.04 is stored as 60.0, so it is the same weight.
+      expect((await put(app, headers, { target_weight_kg: 60.04 })).statusCode).toBe(200);
+    });
+
+    it('does not block an unrelated screen because of an older inconsistency', async () => {
+      const deps = fakeDeps();
+      const app = buildApp(deps);
+      const { guestSession, headers } = await guestWith(deps);
+      // Put an inconsistent row in place directly, as if rules had changed.
+      await deps.onboarding.save(
+        { guestSessionId: guestSession.id },
+        { weightKg: 60, targetWeightKg: 70, goal: 'lose' },
+        new Date(),
+      );
+      expect((await put(app, headers, { obstacle: 'consistency' })).statusCode).toBe(200);
+    });
+
+    it('applies to a signed-in user the same way', async () => {
+      const deps = fakeDeps();
+      const app = buildApp(deps);
+      const token = await deps.accessTokens.issue({ userId: 'user-2', sessionId: 'session-2' });
+      const headers = { authorization: `Bearer ${token}` };
+      await put(app, headers, { weight_kg: 70, target_weight_kg: 75 });
+      const response = await put(app, headers, { goal: 'lose' });
+      expect(response.json<ErrorBody>().error.code).toBe('target_weight_inconsistent');
+    });
+  });
 });

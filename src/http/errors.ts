@@ -42,6 +42,12 @@ export const ERROR_CODES = {
   unsupported_media_type: { status: 415, message: 'The content type is not supported.' },
   validation_failed: { status: 422, message: 'One or more fields are invalid.' },
   invalid_email: { status: 422, message: 'Enter a valid email address.' },
+  // The onboarding goal and target weight point in opposite directions
+  // (document 02 section 3.2).
+  target_weight_inconsistent: {
+    status: 422,
+    message: 'Your target weight does not match your goal.',
+  },
   // Mail to this address bounced or was reported as spam; we no longer send
   // there (decision 39).
   email_undeliverable: {

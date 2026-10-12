@@ -6,6 +6,7 @@
 // are written; the rest keep what they had (that is what makes a partial
 // update partial).
 
+import { eq } from 'drizzle-orm';
 import type { Executor } from './idempotency-store.js';
 import { onboardingResponses } from './schema/index.js';
 
@@ -27,8 +28,23 @@ export interface OnboardingStore {
   // Creates the owner's row if it does not exist, writes the answers that are
   // present in `answers`, and resolves to the whole row afterwards. An empty
   // `answers` is a plain read that also creates the row.
-  save(owner: OnboardingOwner, answers: OnboardingAnswers, now: Date): Promise<OnboardingResponse>;
+  //
+  // `completedAt` is not an answer, so it is a separate argument: a Date marks
+  // the questionnaire complete, null marks it incomplete again, and leaving it
+  // out keeps what is stored.
+  save(
+    owner: OnboardingOwner,
+    answers: OnboardingAnswers,
+    now: Date,
+    completedAt?: Date | null,
+  ): Promise<OnboardingResponse>;
+  // The owner's stored answers, or null if they have not saved any yet. The
+  // route reads them to check a new answer against the ones already given.
+  find(owner: OnboardingOwner): Promise<OnboardingResponse | null>;
 }
+
+const keyOf = (owner: OnboardingOwner): string =>
+  'guestSessionId' in owner ? `guest:${owner.guestSessionId}` : `user:${owner.userId}`;
 
 type Changes = Partial<typeof onboardingResponses.$inferInsert>;
 
@@ -62,8 +78,11 @@ function toResponse(row: Row): OnboardingResponse {
 
 export function createOnboardingStore(db: Executor): OnboardingStore {
   return {
-    async save(owner, answers, now) {
-      const changes = definedOnly(answers);
+    async save(owner, answers, now, completedAt) {
+      const changes: Changes = {
+        ...definedOnly(answers),
+        ...(completedAt === undefined ? {} : { completedAt }),
+      };
       // `insert ... on conflict do update` is one statement, so two requests
       // arriving together cannot both try to insert and have one fail.
       // (Backend notes entry 42.) `updated_at` is set by hand because Drizzle's
@@ -82,6 +101,16 @@ export function createOnboardingStore(db: Executor): OnboardingStore {
       if (row === undefined) throw new Error('onboarding response upsert returned no row');
       return toResponse(row);
     },
+
+    async find(owner) {
+      const row = await db.query.onboardingResponses.findFirst({
+        where:
+          'guestSessionId' in owner
+            ? eq(onboardingResponses.guestSessionId, owner.guestSessionId)
+            : eq(onboardingResponses.userId, owner.userId),
+      });
+      return row === undefined ? null : toResponse(row);
+    },
   };
 }
 
@@ -91,13 +120,21 @@ export function memoryOnboardingStore(): OnboardingStore {
   const rows = new Map<string, OnboardingResponse>();
 
   return {
-    save(owner, answers) {
-      const key =
-        'guestSessionId' in owner ? `guest:${owner.guestSessionId}` : `user:${owner.userId}`;
+    find(owner) {
+      const row = rows.get(keyOf(owner));
+      return Promise.resolve(row === undefined ? null : { ...row });
+    },
+
+    save(owner, answers, _now, completedAt) {
+      const key = keyOf(owner);
       const current = rows.get(key) ?? toResponse(emptyRow());
       // definedOnly has already dropped the undefined values, which the type of
       // a spread cannot know; Object.assign copies exactly the keys present.
-      const next: OnboardingResponse = Object.assign({ ...current }, definedOnly(answers));
+      const next: OnboardingResponse = Object.assign(
+        { ...current },
+        definedOnly(answers),
+        completedAt === undefined ? {} : { completedAt },
+      );
       rows.set(key, next);
       return Promise.resolve({ ...next });
     },
