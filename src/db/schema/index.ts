@@ -13,7 +13,7 @@
 //   enums.ts           every enumeration, document 01 section 5 (Phase 1.4)
 //   infrastructure.ts  idempotency_keys, audit_log, outbox (Phase 1.4)
 //   identity.ts        users, devices, sessions, tokens (Phase 2)
-//   onboarding.ts      guest sessions and questionnaire answers (Phase 3)
+//   onboarding.ts      questionnaire answers, plan generations (Phase 3)
 //   profile.ts / goals.ts                                        (Phase 4)
 //   food.ts            media, scans, meals                       (Phase 5)
 //   tracking.ts        water, activity, daily summaries          (Phase 6)
@@ -29,3 +29,4 @@
 export * from './enums.js';
 export * from './infrastructure.js';
 export * from './identity.js';
+export * from './onboarding.js';

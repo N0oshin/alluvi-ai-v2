@@ -7,8 +7,8 @@ import * as schema from './index.js';
 const all = Object.values(enums).filter(isPgEnum);
 
 describe('enumerations', () => {
-  it('defines the 31 enums of document 01 section 5', () => {
-    expect(all).toHaveLength(31);
+  it('defines the 33 enums of document 01 section 5', () => {
+    expect(all).toHaveLength(33);
   });
 
   it('uses snake_case type names and values', () => {
@@ -36,6 +36,23 @@ describe('enumerations', () => {
       'deleted',
     ]);
     expect(enums.workoutFrequencyEnum.enumValues).toEqual(['0_2', '3_5', '6_plus']);
+    expect(enums.acquisitionSourceEnum.enumValues).toEqual([
+      'facebook',
+      'tiktok',
+      'friend_or_family',
+      'instagram',
+      'youtube',
+      'app_store',
+      'tv',
+    ]);
+    // The order is the order the steps tick on screen, so it is part of the contract.
+    expect(enums.planStepEnum.enumValues).toEqual([
+      'calories',
+      'carbs',
+      'protein',
+      'fats',
+      'health_score',
+    ]);
     expect(enums.fastingProtocolEnum.enumValues).toEqual(['12_12', '14_10', '16_8', 'custom']);
     expect(enums.scanStatusEnum.enumValues).toEqual([
       'created',
@@ -50,6 +67,6 @@ describe('enumerations', () => {
   });
 
   it('is re-exported by the schema barrel', () => {
-    expect(Object.values(schema).filter(isPgEnum)).toHaveLength(31);
+    expect(Object.values(schema).filter(isPgEnum)).toHaveLength(33);
   });
 });

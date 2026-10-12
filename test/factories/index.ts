@@ -6,10 +6,12 @@
 
 import * as identity from './identity.js';
 import * as infrastructure from './infrastructure.js';
+import * as onboarding from './onboarding.js';
 
 export const factories = {
   ...identity,
   ...infrastructure,
+  ...onboarding,
 };
 
 export { defineFactory, nextSequence, type Factory } from './define.js';

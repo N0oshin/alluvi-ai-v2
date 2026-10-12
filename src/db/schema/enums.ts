@@ -45,6 +45,25 @@ export const motivationEnum = pgEnum('motivation', [
   'stay_motivated',
   'body_confidence',
 ]);
+// Screen 95, "Where did you hear about us?".
+export const acquisitionSourceEnum = pgEnum('acquisition_source', [
+  'facebook',
+  'tiktok',
+  'friend_or_family',
+  'instagram',
+  'youtube',
+  'app_store',
+  'tv',
+]);
+// The five lines that tick off on screens 113 to 115 while a plan is built, in
+// the order they tick (document 01 section 6.2).
+export const planStepEnum = pgEnum('plan_step', [
+  'calories',
+  'carbs',
+  'protein',
+  'fats',
+  'health_score',
+]);
 export const activityLevelEnum = pgEnum('activity_level', [
   'sedentary',
   'light',
