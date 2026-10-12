@@ -38,8 +38,6 @@ export type PlanWarning =
   | 'low_carb_result';
 
 export interface PlanResult {
-  // The direction the plan really follows, which is `maintain` when a guard
-  // overrode the person's goal. Screen 116 must not say "lose" in that case.
   headline: { direction: Goal; deltaKg: number };
   caloriesKcal: number;
   proteinG: number;
@@ -56,8 +54,7 @@ export interface PlanResult {
   algorithmVersion: string;
 }
 
-// Guard 6: the result is outside what the database allows (document 01
-// section 4.2). The worker turns it into `failure_code: implausible_inputs`.
+// Guard 6: the result is outside what the database allows. The worker turns it into `failure_code: implausible_inputs`.
 export class ImplausiblePlanError extends Error {
   readonly code = 'implausible_inputs';
   readonly caloriesKcal: number;
@@ -69,12 +66,12 @@ export class ImplausiblePlanError extends Error {
   }
 }
 
-// ---- The numbers (document 05 sections 3 and 5) --------------------------------
+// ---- The numbers --------------------------------
 
 // Step 1: Mifflin-St Jeor. `other` is the midpoint of the two published constants.
 const BMR_SEX_CONSTANT: Record<Sex, number> = { male: 5, female: -161, other: -78 };
 
-// Step 2 and step 6: activity (decision 45). `light` is never produced here.
+// Step 2 and step 6: activity. `light` is never produced here.
 const ACTIVITY: Record<
   WorkoutFrequency,
   { level: ActivityLevel; multiplier: number; waterExtraMl: number }
@@ -84,7 +81,7 @@ const ACTIVITY: Record<
   '6_plus': { level: 'active', multiplier: 1.725, waterExtraMl: 500 },
 };
 
-// Step 3: a fixed share of body weight per week (decision 46), turned into a
+// Step 3: a fixed share of body weight per week, turned into a
 // daily budget with 7,700 kcal per kg. A budget, not a prediction.
 const KCAL_PER_KG = 7700;
 const WEEKLY_RATE = { lose: 0.005, gain: 0.0025 };
