@@ -9,6 +9,8 @@ import { createGuestSessionStore } from '../db/guest-session-store.js';
 import { createIdempotencyStore } from '../db/idempotency-store.js';
 import { db, pool } from '../db/index.js';
 import { createMagicLinkStore } from '../db/magic-link-store.js';
+import { createOnboardingStore } from '../db/onboarding-store.js';
+import { createPlanGenerationStore } from '../db/plan-generation-store.js';
 import { createOutboxStore } from '../db/outbox.js';
 import { createRateLimitStore } from '../db/rate-limit-store.js';
 import { loggerOptions } from '../http/logging.js';
@@ -36,6 +38,8 @@ const runner = createPgBoss({
     outboxStore: createOutboxStore(db),
     magicLinkStore: createMagicLinkStore(db),
     guestSessionStore: createGuestSessionStore(db),
+    onboardingStore: createOnboardingStore(db),
+    planGenerationStore: createPlanGenerationStore(db),
     consumers,
     providers: buildProviders(config),
   }),

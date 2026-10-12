@@ -3,11 +3,10 @@
 // screen sends only its own answer(s) and the rest are left as they were.
 //
 
-import type { FastifyPluginCallback, FastifyRequest } from 'fastify';
+import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
 import type {
   OnboardingAnswers,
-  OnboardingOwner,
   OnboardingResponse,
   OnboardingStore,
 } from '../../db/onboarding-store.js';
@@ -22,12 +21,14 @@ import {
 } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
 import { validate } from '../../http/validate.js';
+import { ownerOf } from './owner.js';
 import {
   birthDateProblem,
   missingAnswers,
   roundTo,
   TARGET_WEIGHT_MESSAGES,
   targetWeightMatchesGoal,
+  toSnakeCase,
 } from './rules.js';
 
 export interface OnboardingRouteDependencies {
@@ -56,19 +57,6 @@ const bodySchema = z.strictObject({
   rollover_calories: z.boolean().optional(),
 });
 
-// Who the answers belong to.
-function ownerOf(request: FastifyRequest): OnboardingOwner {
-  const principal = request.principal;
-  switch (principal.kind) {
-    case 'user':
-      return { userId: principal.userId };
-    case 'guest':
-      return { guestSessionId: principal.guestSessionId };
-    case 'anonymous':
-      throw new AppError('unauthenticated');
-  }
-}
-
 // The stored row in the API.
 function toBody(response: OnboardingResponse) {
   return {
@@ -94,9 +82,6 @@ function toBody(response: OnboardingResponse) {
     missing_fields: missingAnswers(response).map(toSnakeCase),
   };
 }
-
-const toSnakeCase = (name: string): string =>
-  name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 export function onboardingResponseRoutes(deps: OnboardingRouteDependencies): FastifyPluginCallback {
   const now = deps.now ?? (() => new Date());

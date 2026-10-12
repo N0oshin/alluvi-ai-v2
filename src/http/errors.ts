@@ -36,6 +36,12 @@ export const ERROR_CODES = {
     status: 409,
     message: 'This link was requested from a different device.',
   },
+  // A plan was requested before every required onboarding answer was saved;
+  // `details` lists the missing ones (document 02 section 3.4).
+  onboarding_incomplete: {
+    status: 409,
+    message: 'Finish the questionnaire to build your plan.',
+  },
   magic_link_expired: { status: 410, message: 'This link has expired. Request a new one.' },
   precondition_failed: { status: 412, message: 'The resource was changed by someone else.' },
   payload_too_large: { status: 413, message: 'The request is too large.' },

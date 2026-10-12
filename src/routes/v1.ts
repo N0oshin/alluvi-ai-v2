@@ -11,6 +11,7 @@ import { guestSessionRoutes } from '../modules/identity/guest-sessions.js';
 import { magicLinkRoutes } from '../modules/identity/magic-links.js';
 import { sessionRoutes } from '../modules/identity/sessions.js';
 import { socialSignInRoutes } from '../modules/identity/social-sign-in.js';
+import { planGenerationRoutes } from '../modules/onboarding/plan-generations.js';
 import { onboardingResponseRoutes } from '../modules/onboarding/responses.js';
 
 export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
@@ -26,6 +27,7 @@ export function v1Routes(deps: AppDependencies): FastifyPluginCallback {
     void app.register(magicLinkRoutes({ ...deps, email: deps.providers.email }));
     void app.register(socialSignInRoutes(deps));
     void app.register(onboardingResponseRoutes(deps));
+    void app.register(planGenerationRoutes(deps));
 
     done();
   };

@@ -7,16 +7,14 @@
 // update partial).
 
 import { eq } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import type { Executor } from './idempotency-store.js';
 import { onboardingResponses } from './schema/index.js';
 
 type Row = typeof onboardingResponses.$inferSelect;
-export type OnboardingResponse = Omit<
-  Row,
-  'id' | 'createdAt' | 'updatedAt' | 'guestSessionId' | 'userId'
->;
+export type OnboardingResponse = Omit<Row, 'createdAt' | 'updatedAt' | 'guestSessionId' | 'userId'>;
 
-type AnswerKey = Exclude<keyof OnboardingResponse, 'completedAt'>;
+type AnswerKey = Exclude<keyof OnboardingResponse, 'id' | 'completedAt'>;
 
 export type OnboardingAnswers = {
   [K in AnswerKey]?: NonNullable<OnboardingResponse[K]> | undefined;
@@ -41,6 +39,9 @@ export interface OnboardingStore {
   // The owner's stored answers, or null if they have not saved any yet. The
   // route reads them to check a new answer against the ones already given.
   find(owner: OnboardingOwner): Promise<OnboardingResponse | null>;
+  // The same row looked up by its own id. The worker has the id from the plan
+  // generation, not an owner.
+  findById(id: string): Promise<OnboardingResponse | null>;
 }
 
 const keyOf = (owner: OnboardingOwner): string =>
@@ -56,6 +57,7 @@ function definedOnly(answers: OnboardingAnswers): Changes {
 
 function toResponse(row: Row): OnboardingResponse {
   return {
+    id: row.id,
     sex: row.sex,
     workoutFrequency: row.workoutFrequency,
     birthDate: row.birthDate,
@@ -111,6 +113,13 @@ export function createOnboardingStore(db: Executor): OnboardingStore {
       });
       return row === undefined ? null : toResponse(row);
     },
+
+    async findById(id) {
+      const row = await db.query.onboardingResponses.findFirst({
+        where: eq(onboardingResponses.id, id),
+      });
+      return row === undefined ? null : toResponse(row);
+    },
   };
 }
 
@@ -125,9 +134,14 @@ export function memoryOnboardingStore(): OnboardingStore {
       return Promise.resolve(row === undefined ? null : { ...row });
     },
 
+    findById(id) {
+      const row = [...rows.values()].find((candidate) => candidate.id === id);
+      return Promise.resolve(row === undefined ? null : { ...row });
+    },
+
     save(owner, answers, _now, completedAt) {
       const key = keyOf(owner);
-      const current = rows.get(key) ?? toResponse(emptyRow());
+      const current = rows.get(key) ?? { ...toResponse(emptyRow()), id: uuidv7() };
       // definedOnly has already dropped the undefined values, which the type of
       // a spread cannot know; Object.assign copies exactly the keys present.
       const next: OnboardingResponse = Object.assign(

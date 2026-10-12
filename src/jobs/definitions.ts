@@ -13,6 +13,8 @@ export interface JobPayloads {
   'infrastructure.cleanup': { before?: string };
   // Removes expired magic links and abandoned guest sessions.
   'identity.purge': { before?: string };
+  // Builds the plan for one plan generation (Phase 3.3).
+  'onboarding.generate_plan': { planGenerationId: string };
   // Hands pending outbox events to their consumers .
   'outbox.publish': { limit?: number };
 }
@@ -33,5 +35,9 @@ export const DEFAULT_JOB_SETTINGS: JobSettings = {
 export const jobs: JobCatalogue<JobPayloads> = {
   'infrastructure.cleanup': { ...DEFAULT_JOB_SETTINGS, retryLimit: 1 },
   'identity.purge': { ...DEFAULT_JOB_SETTINGS, retryLimit: 1 },
+  // A generation that takes over 60 seconds counts as failed (document 03
+  // section 1.4), so the run expires at 60 seconds; one retry covers a
+  // transient database error.
+  'onboarding.generate_plan': { ...DEFAULT_JOB_SETTINGS, retryLimit: 1, expireInSeconds: 60 },
   'outbox.publish': { ...DEFAULT_JOB_SETTINGS, retryLimit: 0, policy: 'short' },
 };

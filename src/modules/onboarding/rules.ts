@@ -67,3 +67,20 @@ export function missingAnswers(
 ): RequiredAnswer[] {
   return REQUIRED_ANSWERS.filter((name) => answers[name] === null);
 }
+
+// `heightCm` becomes `height_cm`: the name of an answer as the API spells it.
+export const toSnakeCase = (name: string): string =>
+  name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+// Whole completed years on the given date. `birthDate` is YYYY-MM-DD; the
+// date is read in UTC so the answer does not depend on the server's time zone.
+// The calculator receives this number and never looks at a clock itself.
+export function ageInYears(birthDate: string, on: Date): number {
+  const year = Number(birthDate.slice(0, 4));
+  const month = Number(birthDate.slice(5, 7));
+  const day = Number(birthDate.slice(8, 10));
+
+  const monthNow = on.getUTCMonth() + 1;
+  const birthdayPassed = monthNow > month || (monthNow === month && on.getUTCDate() >= day);
+  return on.getUTCFullYear() - year - (birthdayPassed ? 0 : 1);
+}

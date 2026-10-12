@@ -9,6 +9,7 @@ import type { EmailSuppressionStore } from './db/email-suppression-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
 import type { MagicLinkStore } from './db/magic-link-store.js';
 import type { OnboardingStore } from './db/onboarding-store.js';
+import type { PlanGenerationStore } from './db/plan-generation-store.js';
 import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
 import type { SessionStore } from './db/session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
@@ -49,6 +50,8 @@ export type AppDependencies = HealthDependencies & {
   audit: AuditStore;
   // Questionnaire answers for guests and users (Phase 3.2).
   onboarding: OnboardingStore;
+  // Plan builds started from the onboarding answers (Phase 3.3).
+  planGenerations: PlanGenerationStore;
   // Apple and Google identity token verifiers, each absent when not
   // configured (Phase 2.3).
   identityTokens: IdentityTokenVerifiers;

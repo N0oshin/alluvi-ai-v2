@@ -116,6 +116,13 @@ describeWithDatabase('createOnboardingStore', () => {
     expect(await store().find({ userId: user.id })).toMatchObject({ goal: 'gain' });
   });
 
+  it('finds a row by its own id', async () => {
+    const g = await guest();
+    const saved = await store().save({ guestSessionId: g.id }, { goal: 'gain' }, new Date());
+    expect(await store().findById(saved.id)).toMatchObject({ id: saved.id, goal: 'gain' });
+    expect(await store().findById('019a0000-0000-7000-8000-00000000dead')).toBeNull();
+  });
+
   it('survives two saves arriving at the same time', async () => {
     const g = await guest();
     await Promise.all([

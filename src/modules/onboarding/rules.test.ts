@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ageInYears,
   birthDateProblem,
   EARLIEST_BIRTH_DATE,
   missingAnswers,
@@ -99,5 +100,33 @@ describe('missingAnswers', () => {
       'heightCm',
       'goal',
     ]);
+  });
+});
+
+describe('ageInYears', () => {
+  const on = new Date('2026-10-12T12:00:00Z');
+
+  it.each([
+    ['1998-10-12', 28], // birthday today: already 28
+    ['1998-10-13', 27], // birthday tomorrow: still 27
+    ['1998-10-11', 28],
+    ['2008-10-12', 18], // 18 exactly
+    ['2008-10-13', 17], // one day short of 18
+    ['1998-03-14', 28],
+    ['1998-12-31', 27],
+    ['2026-10-12', 0], // born today
+  ] as const)('born %s is %i on 2026-10-12', (birthDate, expected) => {
+    expect(ageInYears(birthDate, on)).toBe(expected);
+  });
+
+  it('counts a 29 February birthday from 1 March in a non-leap year', () => {
+    expect(ageInYears('2000-02-29', new Date('2027-02-28T12:00:00Z'))).toBe(26);
+    expect(ageInYears('2000-02-29', new Date('2027-03-01T12:00:00Z'))).toBe(27);
+  });
+
+  it('reads the date in UTC, so the server time zone does not change the age', () => {
+    // 23:30 UTC on the 11th is still the 11th, whatever the local clock says.
+    expect(ageInYears('1998-10-12', new Date('2026-10-11T23:30:00Z'))).toBe(27);
+    expect(ageInYears('1998-10-12', new Date('2026-10-12T00:30:00Z'))).toBe(28);
   });
 });
