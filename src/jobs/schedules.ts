@@ -13,6 +13,9 @@ import type { JobSchedules } from './queue.js';
 export const schedules: JobSchedules<JobPayloads> = {
   // Expired idempotency keys and rate limit windows, once a night.
   'infrastructure.cleanup': { cron: '0 3 * * *', payload: {} },
+  // Expired magic links and abandoned guest sessions, once a night, half an
+  // hour after the cleanup above so the two never compete for the database.
+  'identity.purge': { cron: '30 3 * * *', payload: {} },
   // The outbox is drained every minute. A route may also enqueue
   // 'outbox.publish' right after a commit so its event goes out sooner.
   'outbox.publish': { cron: '* * * * *', payload: {} },

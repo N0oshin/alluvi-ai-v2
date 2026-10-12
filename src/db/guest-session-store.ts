@@ -6,7 +6,7 @@
 // new user and ends the guest token: a claimed session no longer resolves, so
 // it cannot be claimed twice
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import {
   generateGuestToken,
@@ -36,6 +36,11 @@ export interface GuestSessionStore {
   resolve(guestToken: string, now: Date): Promise<GuestSession>;
   // Sign-in: attach the session to the new user, once.
   claim(guestSessionId: string, userId: string, now: Date): Promise<GuestSession>;
+  // Purge job: removes sessions that expired before `before` and were never
+  // claimed (the person never signed up). A claimed session stays: it is the
+  // record of where a user's onboarding answers came from. Resolves to how
+  // many were removed.
+  deleteExpired(before: Date): Promise<number>;
 }
 
 type Row = typeof guestSessions.$inferSelect;
@@ -105,6 +110,14 @@ export function createGuestSessionStore(db: Executor): GuestSessionStore {
       });
       throw new AppError(existing === undefined ? 'unauthenticated' : 'conflict');
     },
+
+    async deleteExpired(before) {
+      const deleted = await db
+        .delete(guestSessions)
+        .where(and(lt(guestSessions.expiresAt, before), isNull(guestSessions.claimedByUserId)))
+        .returning({ id: guestSessions.id });
+      return deleted.length;
+    },
   };
 }
 
@@ -146,6 +159,17 @@ export function memoryGuestSessionStore(): GuestSessionStore {
       }
       row.claimedByUserId = userId;
       return Promise.resolve(toGuestSession(row));
+    },
+
+    deleteExpired(before) {
+      let deleted = 0;
+      for (const [id, row] of rows) {
+        if (row.expiresAt < before && row.claimedByUserId === null) {
+          rows.delete(id);
+          deleted += 1;
+        }
+      }
+      return Promise.resolve(deleted);
     },
   };
 }

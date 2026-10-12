@@ -3,7 +3,7 @@
 //
 // Like refresh and guest tokens, only the SHA-256 hash is stored. A link is single use: `consume` marks it with one
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import {
   generateMagicLinkToken,
@@ -51,6 +51,9 @@ export interface MagicLinkStore {
   consume(token: string, now: Date): Promise<MagicLink>;
   // Undoes a create whose email could not be sent.
   delete(linkId: string): Promise<void>;
+  // Purge job: removes links that expired before `before`, used or not.
+  // Resolves to how many.
+  deleteExpired(before: Date): Promise<number>;
 }
 
 type Row = typeof magicLinkTokens.$inferSelect;
@@ -137,6 +140,14 @@ export function createMagicLinkStore(db: Executor): MagicLinkStore {
     async delete(linkId) {
       await db.delete(magicLinkTokens).where(eq(magicLinkTokens.id, linkId));
     },
+
+    async deleteExpired(before) {
+      const deleted = await db
+        .delete(magicLinkTokens)
+        .where(lt(magicLinkTokens.expiresAt, before))
+        .returning({ id: magicLinkTokens.id });
+      return deleted.length;
+    },
   };
 }
 
@@ -186,6 +197,16 @@ export function memoryMagicLinkStore(): MagicLinkStore {
     delete(linkId) {
       rows.delete(linkId);
       return Promise.resolve();
+    },
+    deleteExpired(before) {
+      let deleted = 0;
+      for (const [id, row] of rows) {
+        if (row.expiresAt < before) {
+          rows.delete(id);
+          deleted += 1;
+        }
+      }
+      return Promise.resolve(deleted);
     },
   };
 }

@@ -3,6 +3,7 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { AccessTokenService } from './auth/access-token.js';
 import type { AccountStore } from './db/account-store.js';
+import type { AuditStore } from './db/audit-store.js';
 import type { DeviceStore } from './db/device-store.js';
 import type { EmailSuppressionStore } from './db/email-suppression-store.js';
 import type { GuestSessionStore } from './db/guest-session-store.js';
@@ -43,6 +44,8 @@ export type AppDependencies = HealthDependencies & {
   // Email sign-in links and where they point (Phase 2.3).
   magicLinks: MagicLinkStore;
   magicLinkBaseUrl: string;
+  // Append-only record of sign-ins, failures, logouts and consents (Phase 2.4).
+  audit: AuditStore;
   // Apple and Google identity token verifiers, each absent when not
   // configured (Phase 2.3).
   identityTokens: IdentityTokenVerifiers;

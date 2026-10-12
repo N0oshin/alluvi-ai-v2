@@ -13,9 +13,11 @@
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
 import { ACCESS_TOKEN_LIFETIME_SECONDS, type AccessTokenService } from '../../auth/access-token.js';
+import { AUDIT_ACTIONS, recordAudit, type AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
-import type { SessionStore } from '../../db/session-store.js';
+import type { IssuedSession, SessionStore } from '../../db/session-store.js';
 import { requireUser } from '../../http/auth.js';
+import { AppError } from '../../http/errors.js';
 import { byIp, MINUTE } from '../../http/rate-limit.js';
 import { validate } from '../../http/validate.js';
 
@@ -23,6 +25,7 @@ export interface SessionRouteDependencies {
   sessions: SessionStore;
   devices: DeviceStore;
   accessTokens: AccessTokenService;
+  audit: AuditStore;
   now?: () => Date;
 }
 
@@ -48,7 +51,23 @@ export function sessionRoutes(deps: SessionRouteDependencies): FastifyPluginCall
         const body = validate(refreshSchema, request.body);
         // Throws 401 unauthenticated for an unknown, expired or revoked token
         // and 401 refresh_token_reused (revoking the session) for a replay.
-        const { session, refreshToken } = await deps.sessions.rotate(body.refresh_token, now());
+        let rotated: IssuedSession;
+        try {
+          rotated = await deps.sessions.rotate(body.refresh_token, now());
+        } catch (error) {
+          // A replayed token means it was copied: worth a row of its own.
+          // The store has already revoked the session; the user is unknown
+          // here, so the entry carries the request and the address only.
+          if (error instanceof AppError && error.code === 'refresh_token_reused') {
+            await recordAudit(
+              deps.audit,
+              { action: AUDIT_ACTIONS.refreshReuse, requestId: request.id, ip: request.ip },
+              request.log,
+            );
+          }
+          throw error;
+        }
+        const { session, refreshToken } = rotated;
         const accessToken = await deps.accessTokens.issue({
           userId: session.userId,
           sessionId: session.id,
@@ -78,7 +97,7 @@ export function sessionRoutes(deps: SessionRouteDependencies): FastifyPluginCall
         },
       },
       async (request, reply) => {
-        const { sessionId } = requireUser(request);
+        const { userId, sessionId } = requireUser(request);
         const at = now();
         // The access token named the session; the session names the device.
         const session = await deps.sessions.find(sessionId);
@@ -86,6 +105,19 @@ export function sessionRoutes(deps: SessionRouteDependencies): FastifyPluginCall
         if (session !== undefined) {
           await deps.devices.clearPushToken(session.deviceId, at);
         }
+        await recordAudit(
+          deps.audit,
+          {
+            action: AUDIT_ACTIONS.logout,
+            actorUserId: userId,
+            targetType: 'session',
+            targetId: sessionId,
+            deviceId: session?.deviceId ?? null,
+            requestId: request.id,
+            ip: request.ip,
+          },
+          request.log,
+        );
         // 204 No Content: done, nothing to say.
         return reply.code(204).send();
       },

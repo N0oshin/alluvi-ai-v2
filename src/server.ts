@@ -12,6 +12,7 @@ import {
 } from './auth/access-token.js';
 import { APPLE, createIdentityTokenVerifier, GOOGLE } from './auth/identity-token.js';
 import { createAccountStore } from './db/account-store.js';
+import { createAuditStore } from './db/audit-store.js';
 import { createDeviceStore } from './db/device-store.js';
 import { createEmailSuppressionStore } from './db/email-suppression-store.js';
 import { createGuestSessionStore } from './db/guest-session-store.js';
@@ -77,6 +78,7 @@ const app = buildApp(
     devices: createDeviceStore(db),
     accounts: createAccountStore(db),
     sessions: createSessionStore(db),
+    audit: createAuditStore(db),
     magicLinks: createMagicLinkStore(db),
     magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
     identityTokens,

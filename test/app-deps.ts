@@ -9,6 +9,7 @@
 import type { AppDependencies } from '../src/app.js';
 import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
 import { memoryAccountStore } from '../src/db/account-store.js';
+import { memoryAuditStore } from '../src/db/audit-store.js';
 import { memoryDeviceStore } from '../src/db/device-store.js';
 import { memoryEmailSuppressionStore } from '../src/db/email-suppression-store.js';
 import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
@@ -32,6 +33,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     devices: memoryDeviceStore(),
     accounts: memoryAccountStore(),
     sessions: memorySessionStore(),
+    audit: memoryAuditStore(),
     magicLinks: memoryMagicLinkStore(),
     magicLinkBaseUrl: 'https://app.test/auth/magic-link',
     // Not configured by default; the social sign-in tests build verifiers

@@ -16,6 +16,7 @@ import {
   MAGIC_LINK_RESEND_COOLDOWN_SECONDS,
 } from '../../auth/magic-link-token.js';
 import type { AccountStore } from '../../db/account-store.js';
+import type { AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { EmailSuppressionStore } from '../../db/email-suppression-store.js';
 import type { MagicLinkStore } from '../../db/magic-link-store.js';
@@ -26,6 +27,7 @@ import { readTimeZone } from '../../http/time-zone.js';
 import { validate } from '../../http/validate.js';
 import type { EmailProvider } from '../../providers/email/index.js';
 import { magicLinkEmail } from './magic-link-email.js';
+import { withSignInAudit } from './audit.js';
 import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';
 
@@ -34,6 +36,7 @@ export interface MagicLinkRouteDependencies {
   devices: DeviceStore;
   accounts: AccountStore;
   accessTokens: AccessTokenService;
+  audit: AuditStore;
   email: EmailProvider;
   emailSuppressions: EmailSuppressionStore;
   // MAGIC_LINK_BASE_URL; the token is appended as ?token=...
@@ -177,30 +180,34 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
         },
       },
       async (request, reply) => {
-        const body = validate(consumeSchema, request.body);
-        const timeZone = readTimeZone(request.headers);
-        const device = await deviceFor(body.device_install_id);
-        const at = now();
+        const result = await withSignInAudit(deps.audit, request, 'email', async () => {
+          const body = validate(consumeSchema, request.body);
+          const timeZone = readTimeZone(request.headers);
+          const device = await deviceFor(body.device_install_id);
+          const at = now();
 
-        // Look before using: a link opened on another install is refused
-        // without being used up, so the person can confirm and retry.
-        const pending = await deps.magicLinks.peek(body.token, at);
-        if (pending.requestedDeviceId !== device.id && !body.confirm_device) {
-          throw new AppError('magic_link_other_device');
-        }
+          // Look before using: a link opened on another install is refused
+          // without being used up, so the person can confirm and retry.
+          const pending = await deps.magicLinks.peek(body.token, at);
+          if (pending.requestedDeviceId !== device.id && !body.confirm_device) {
+            throw new AppError('magic_link_other_device');
+          }
 
-        const link = await deps.magicLinks.consume(body.token, at);
-        const result = await signIn.signIn({
-          provider: 'email',
-          subject: link.email,
-          email: link.email,
-          givenName: null,
-          familyName: null,
-          consents: toConsentDecisions(body.consents),
-          guestSessionId: link.guestSessionId,
-          deviceId: device.id,
-          timeZone,
-          ip: request.ip,
+          const link = await deps.magicLinks.consume(body.token, at);
+          const consents = toConsentDecisions(body.consents);
+          const signedIn = await signIn.signIn({
+            provider: 'email',
+            subject: link.email,
+            email: link.email,
+            givenName: null,
+            familyName: null,
+            consents,
+            guestSessionId: link.guestSessionId,
+            deviceId: device.id,
+            timeZone,
+            ip: request.ip,
+          });
+          return { result: signedIn, deviceId: device.id, consents };
         });
         return reply.code(result.status).send(result.body);
       },

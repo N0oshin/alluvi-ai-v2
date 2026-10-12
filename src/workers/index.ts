@@ -5,8 +5,10 @@
 
 import pino from 'pino';
 import { config } from '../config/index.js';
+import { createGuestSessionStore } from '../db/guest-session-store.js';
 import { createIdempotencyStore } from '../db/idempotency-store.js';
 import { db, pool } from '../db/index.js';
+import { createMagicLinkStore } from '../db/magic-link-store.js';
 import { createOutboxStore } from '../db/outbox.js';
 import { createRateLimitStore } from '../db/rate-limit-store.js';
 import { loggerOptions } from '../http/logging.js';
@@ -32,6 +34,8 @@ const runner = createPgBoss({
     idempotencyStore: createIdempotencyStore(db),
     rateLimitStore: createRateLimitStore(db),
     outboxStore: createOutboxStore(db),
+    magicLinkStore: createMagicLinkStore(db),
+    guestSessionStore: createGuestSessionStore(db),
     consumers,
     providers: buildProviders(config),
   }),

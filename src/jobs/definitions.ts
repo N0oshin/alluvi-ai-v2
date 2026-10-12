@@ -11,6 +11,8 @@ import type { JobCatalogue, JobSettings } from './queue.js';
 // add new jobs here, and add their payloads to JobPayloads below. The worker will pick them up automatically.
 export interface JobPayloads {
   'infrastructure.cleanup': { before?: string };
+  // Removes expired magic links and abandoned guest sessions.
+  'identity.purge': { before?: string };
   // Hands pending outbox events to their consumers .
   'outbox.publish': { limit?: number };
 }
@@ -30,5 +32,6 @@ export const DEFAULT_JOB_SETTINGS: JobSettings = {
 
 export const jobs: JobCatalogue<JobPayloads> = {
   'infrastructure.cleanup': { ...DEFAULT_JOB_SETTINGS, retryLimit: 1 },
+  'identity.purge': { ...DEFAULT_JOB_SETTINGS, retryLimit: 1 },
   'outbox.publish': { ...DEFAULT_JOB_SETTINGS, retryLimit: 0, policy: 'short' },
 };

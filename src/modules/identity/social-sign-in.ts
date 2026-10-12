@@ -22,11 +22,13 @@ import { z } from 'zod';
 import type { AccessTokenService } from '../../auth/access-token.js';
 import type { IdentityTokenVerifier } from '../../auth/identity-token.js';
 import type { AccountStore, AuthProvider } from '../../db/account-store.js';
+import type { AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import { AppError } from '../../http/errors.js';
 import { byIp, MINUTE } from '../../http/rate-limit.js';
 import { readTimeZone } from '../../http/time-zone.js';
 import { validate } from '../../http/validate.js';
+import { withSignInAudit } from './audit.js';
 import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';
 
@@ -40,6 +42,7 @@ export interface SocialSignInRouteDependencies {
   devices: DeviceStore;
   accounts: AccountStore;
   accessTokens: AccessTokenService;
+  audit: AuditStore;
   now?: () => Date;
 }
 
@@ -85,28 +88,32 @@ export function socialSignInRoutes(deps: SocialSignInRouteDependencies): Fastify
           },
         },
         async (request, reply) => {
-          const body = validate(bodySchema, request.body);
-          const timeZone = readTimeZone(request.headers);
-          if (verifier === undefined) {
-            request.log.error(`${provider} sign-in is not configured`);
-            throw new AppError('service_unavailable');
-          }
+          const result = await withSignInAudit(deps.audit, request, provider, async () => {
+            const body = validate(bodySchema, request.body);
+            const timeZone = readTimeZone(request.headers);
+            if (verifier === undefined) {
+              request.log.error(`${provider} sign-in is not configured`);
+              throw new AppError('service_unavailable');
+            }
 
-          const identity = await verifier.verify(body.identity_token, body.nonce);
-          const device = await resolveDevice(deps.devices, body.device_install_id);
+            const identity = await verifier.verify(body.identity_token, body.nonce);
+            const device = await resolveDevice(deps.devices, body.device_install_id);
+            const consents = toConsentDecisions(body.consents);
 
-          const result = await signIn.signIn({
-            provider,
-            subject: identity.subject,
-            email: identity.email,
-            // The token's name wins; the body's is the fallback (Apple).
-            givenName: identity.givenName ?? body.given_name ?? null,
-            familyName: identity.familyName ?? body.family_name ?? null,
-            consents: toConsentDecisions(body.consents),
-            guestSessionId: body.guest_session_id ?? null,
-            deviceId: device.id,
-            timeZone,
-            ip: request.ip,
+            const signedIn = await signIn.signIn({
+              provider,
+              subject: identity.subject,
+              email: identity.email,
+              // The token's name wins; the body's is the fallback (Apple).
+              givenName: identity.givenName ?? body.given_name ?? null,
+              familyName: identity.familyName ?? body.family_name ?? null,
+              consents,
+              guestSessionId: body.guest_session_id ?? null,
+              deviceId: device.id,
+              timeZone,
+              ip: request.ip,
+            });
+            return { result: signedIn, deviceId: device.id, consents };
           });
           return reply.code(result.status).send(result.body);
         },
