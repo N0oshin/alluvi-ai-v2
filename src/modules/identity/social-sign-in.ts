@@ -1,9 +1,21 @@
-// POST /v1/auth/apple and POST /v1/auth/google (document 02 section 4.1).
+// POST /v1/auth/apple and POST /v1/auth/google .
 //
-// The phone has already talked to Apple or Google and holds an identity
-// token. We verify it (src/auth/identity-token.ts), and the verified
+// The phone has already talked to Apple or Google and holds an identity token. We verify it (src/auth/identity-token.ts), and the verified
 // identity goes through the same sign-in rules as a magic link (sign-in.ts).
 // The two routes differ only in which verifier they use.
+
+//This file receives that request. Then it does these steps:
+
+// this file Checks:
+// the request format
+
+// Calls the file (identity-token.ts) that verifies the identity token.
+
+// Gets the app installation’s device record
+
+// Calls the sign-in service (sign-in.js)
+
+// Sends the result back to the phone
 
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
@@ -18,12 +30,6 @@ import { validate } from '../../http/validate.js';
 import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';
 
-// A verifier per provider. Undefined means the client ids are not configured
-// (APPLE_CLIENT_IDS / GOOGLE_CLIENT_IDS); the route then answers 503.
-// `X | undefined` rather than `?:` because the project's
-// exactOptionalPropertyTypes setting treats "present but undefined" as a
-// different thing from "absent", and server.ts builds these as present-or-
-// undefined (TypeScript notes, entry 38).
 export interface IdentityTokenVerifiers {
   apple?: IdentityTokenVerifier | undefined;
   google?: IdentityTokenVerifier | undefined;
@@ -43,8 +49,6 @@ const bodySchema = z.strictObject({
   device_install_id: installIdField,
   guest_session_id: z.uuid().nullable().optional(),
   consents: consentsField,
-  // Apple sends the name to the app, not in the token, and only on the very
-  // first sign-in; the app forwards it here. Used only when creating.
   given_name: z.string().max(50).nullable().optional(),
   family_name: z.string().max(50).nullable().optional(),
 });

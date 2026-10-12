@@ -2,22 +2,23 @@
 //
 // Both providers hand the phone an *identity token*: a JWT, signed by the
 // provider, saying "this is person <sub>, their email is <email>, and this
-// token was made for app <aud>". The phone forwards it to us. We check it
-// the way we check our own access tokens (backend notes, entry 38), except
-// the public keys are the provider's, fetched from a published URL (a JWKS)
-// and cached. Backend notes, entry 45.
-//
-// What is checked: signature against the provider's current keys, issuer,
-// audience (one of our client ids), expiry, and the nonce when the token
-// carries one. Any failure is 401 invalid_identity_token; the reason is not
-// revealed to the caller.
+// token was made for app <aud>". The phone forwards it to backend. backend check it
+// Signature: Was it signed using a trusted Google or Apple key?
+// Issuer: Does it name the expected provider?
+// Audience: Was it issued for one of your app’s configured client IDs?
+// Time validity: Is it still valid?
+// Nonce: Does it match the expected sign-in value, when checked?
+// Subject: Does it contain a nonempty user ID?
+// Google and Apple publish public keys that let your backend verify signatures. Those public keys cannot be used to create genuine provider signatures.
+
+//After successful verification, your function returns  a verified identity
 
 import { createHash } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose';
 import { AppError } from '../http/errors.js';
 
 export interface VerifiedIdentity {
-  // The provider's stable id for the person. Never their email.
+  // The provider's stable id for the person..
   subject: string;
   // Only when the provider says the address is verified; otherwise null.
   email: string | null;
@@ -34,7 +35,6 @@ export interface IdentityProvider {
   name: 'apple' | 'google';
   issuer: string | string[];
   jwksUrl: string;
-  // Apple puts the SHA-256 of the app's nonce in the token; Google the nonce itself.
   hashesNonce: boolean;
 }
 

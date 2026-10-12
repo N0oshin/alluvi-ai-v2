@@ -1,5 +1,5 @@
 // The sign-in rules shared by Apple, Google and the email magic link
-// (document 02 section 4.1). Each of those routes proves *who* is calling
+// . Each of those routes proves *who* is calling
 // (a verified identity token, a consumed magic link) and then hands the
 // result here. This file decides what happens next:
 //
@@ -8,8 +8,7 @@
 //      409 and name the method that account uses.
 //   3. Otherwise create the account, which needs the terms consent.
 //
-// It has no SQL of its own; it talks to the AccountStore, so these rules are
-// tested against the in-memory store.
+// this file takes a verified identity, finds or creates the app account according to your rules, opens a session, and returns your app’s tokens plus the next screen to show.
 
 import { ACCESS_TOKEN_LIFETIME_SECONDS, type AccessTokenService } from '../../auth/access-token.js';
 import type {

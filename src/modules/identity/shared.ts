@@ -9,7 +9,7 @@ import { AppError } from '../../http/errors.js';
 
 export const installIdField = z.string().min(8).max(128);
 
-// One checkbox from screen 119, as the API spells it.
+// One checkbox .
 export const consentSchema = z.strictObject({
   type: z.enum(consentTypeEnum.enumValues),
   version: z.string().min(1).max(50),
@@ -24,7 +24,7 @@ export function toConsentDecisions(consents: z.infer<typeof consentSchema>[]): C
 }
 
 // The device behind an install id, or 422 on the field: the phone must have
-// called POST /v1/guest-sessions first (decision 37).
+// called POST /v1/guest-sessions first.
 export async function resolveDevice(devices: DeviceStore, installId: string): Promise<Device> {
   const device = await devices.findByInstallId(installId);
   if (device === undefined) {
