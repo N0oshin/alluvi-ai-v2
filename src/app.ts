@@ -10,6 +10,7 @@ import type { GuestSessionStore } from './db/guest-session-store.js';
 import type { MagicLinkStore } from './db/magic-link-store.js';
 import type { OnboardingStore } from './db/onboarding-store.js';
 import type { PlanGenerationStore } from './db/plan-generation-store.js';
+import { magicLinkPageRoutes } from './modules/identity/magic-links.js';
 import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
 import type { SessionStore } from './db/session-store.js';
 import { addAuthentication, type Principal } from './http/auth.js';
@@ -43,7 +44,8 @@ export type AppDependencies = HealthDependencies & {
   accounts: AccountStore;
   // Signed-in sessions: refresh and logout (Phase 2.3).
   sessions: SessionStore;
-  // Email sign-in links and where they point (Phase 2.3).
+  // Email sign-in links and where they point. The page at that URL is served
+  // by this app, so the URL must be on this app's host (Phase 2.3, decision 51).
   magicLinks: MagicLinkStore;
   magicLinkBaseUrl: string;
   // Append-only record of sign-ins, failures, logouts and consents (Phase 2.4).
@@ -59,7 +61,7 @@ export type AppDependencies = HealthDependencies & {
   // checked before sending (Phase 2.3).
   emailSuppressions: EmailSuppressionStore;
   resendWebhookSecret: string | undefined;
-  // Universal Link / App Link files (Phase 2.3).
+  // Universal Link / App Link files, for group invite links (Phase 2.3).
   appLinks: AppLinkConfig;
 };
 
@@ -106,6 +108,8 @@ export function buildApp(deps: AppDependencies, options: AppOptions = {}): Fasti
   void app.register(healthRoutes(deps), { prefix: '/health' });
   void app.register(webhookRoutes(deps), { prefix: '/webhooks' });
   void app.register(wellKnownRoutes(deps), { prefix: '/.well-known' });
+  // The page a magic link email opens, at the path of MAGIC_LINK_BASE_URL.
+  void app.register(magicLinkPageRoutes(deps));
 
   // Every route inside v1Routes gets "/v1" in front of its path.
   void app.register(v1Routes(deps), { prefix: '/v1' });

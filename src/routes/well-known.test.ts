@@ -8,7 +8,7 @@ const configured: AppLinkConfig = {
   iosBundleId: 'ai.alluvi.app',
   androidPackageName: 'ai.alluvi.app',
   androidCertSha256: ['aa:bb:cc', 'dd:ee:ff'],
-  linkPath: '/auth/magic-link',
+  linkPath: '/groups/',
 };
 
 describe('/.well-known', () => {
@@ -27,8 +27,8 @@ describe('/.well-known', () => {
           {
             appID: 'A1B2C3D4E5.ai.alluvi.app',
             appIDs: ['A1B2C3D4E5.ai.alluvi.app'],
-            paths: ['/auth/magic-link*'],
-            components: [{ '/': '/auth/magic-link', '?': { token: '*' } }],
+            paths: ['/groups/*'],
+            components: [{ '/': '/groups/*' }],
           },
         ],
       },

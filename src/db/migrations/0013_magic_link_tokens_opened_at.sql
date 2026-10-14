@@ -1,0 +1,1 @@
+ALTER TABLE "magic_link_tokens" ADD COLUMN "opened_at" timestamp with time zone;

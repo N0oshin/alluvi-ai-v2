@@ -93,7 +93,9 @@ const app = buildApp(
       iosBundleId: config.IOS_BUNDLE_ID ?? config.APPLE_CLIENT_IDS?.[0],
       androidPackageName: config.ANDROID_PACKAGE_NAME,
       androidCertSha256: config.ANDROID_CERT_SHA256,
-      linkPath: new URL(config.MAGIC_LINK_BASE_URL).pathname,
+      // Group invite links (document 02 section 12.9). Magic links are not
+      // app links any more (decision 51).
+      linkPath: '/groups/',
     },
   },
   { logger },

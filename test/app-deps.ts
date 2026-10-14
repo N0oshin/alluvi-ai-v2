@@ -50,7 +50,7 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
       iosBundleId: undefined,
       androidPackageName: undefined,
       androidCertSha256: undefined,
-      linkPath: '/auth/magic-link',
+      linkPath: '/groups/',
     },
     ...overrides,
   };

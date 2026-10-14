@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
 import { HOUR, MINUTE, SECOND, type RateLimitRule } from '../../http/rate-limit.js';
 import { guestSessionRoutes } from './guest-sessions.js';
-import { magicLinkRoutes } from './magic-links.js';
+import { magicLinkPageRoutes, magicLinkRoutes } from './magic-links.js';
 import { sessionRoutes } from './sessions.js';
 import { socialSignInRoutes } from './social-sign-in.js';
 
@@ -41,6 +41,7 @@ async function collectRoutes(): Promise<Collected[]> {
   void app.register(guestSessionRoutes(deps), { prefix: '/v1' });
   void app.register(sessionRoutes(deps), { prefix: '/v1' });
   void app.register(magicLinkRoutes({ ...deps, email: deps.providers.email }), { prefix: '/v1' });
+  void app.register(magicLinkPageRoutes(deps));
   void app.register(socialSignInRoutes(deps), { prefix: '/v1' });
   await app.ready();
   await app.close();
@@ -56,9 +57,11 @@ describe('authentication route rate limits', () => {
   it('gives every route a rate limit rule', async () => {
     const routes = await collectRoutes();
     expect(routes.map((r) => r.url).sort()).toEqual([
+      '/auth/magic-link',
       '/v1/auth/apple',
       '/v1/auth/email/magic-links',
-      '/v1/auth/email/magic-links/consume',
+      '/v1/auth/email/magic-links/:id/claim',
+      '/v1/auth/email/magic-links/open',
       '/v1/auth/google',
       '/v1/auth/logout',
       '/v1/auth/token/refresh',
@@ -82,8 +85,15 @@ describe('authentication route rate limits', () => {
       { name: 'magic_link.email.hour', limit: 5, windowMs: HOUR },
       { name: 'magic_link.ip', limit: 20, windowMs: HOUR },
     ]);
-    expect(rulesOf('/v1/auth/email/magic-links/consume')).toEqual([
-      { name: 'magic_link.consume.ip', limit: 10, windowMs: 10 * MINUTE },
+    expect(rulesOf('/auth/magic-link')).toEqual([
+      { name: 'magic_link.page.ip', limit: 30, windowMs: 10 * MINUTE },
+    ]);
+    expect(rulesOf('/v1/auth/email/magic-links/open')).toEqual([
+      { name: 'magic_link.open.ip', limit: 10, windowMs: 10 * MINUTE },
+    ]);
+    expect(rulesOf('/v1/auth/email/magic-links/:id/claim')).toEqual([
+      { name: 'magic_link.claim.request', limit: 40, windowMs: MINUTE },
+      { name: 'magic_link.claim.ip', limit: 300, windowMs: 10 * MINUTE },
     ]);
     expect(rulesOf('/v1/auth/apple')).toEqual([
       { name: 'auth.apple.ip', limit: 20, windowMs: 10 * MINUTE },

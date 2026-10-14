@@ -49,16 +49,18 @@ const rawSchema = z.object({
   // NODE_ENV and is filled in below.
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   // Where a magic link points. The token is appended as ?token=mlt_... and
-  // the app claims this URL as a Universal Link / App Link (Phase 2.3) so
-  // tapping it opens the app. The default is a placeholder for development.
-  MAGIC_LINK_BASE_URL: z.url().default('https://app.alluvi.ai/auth/magic-link'),
+  // the API itself serves a confirmation page at that path (decision 51), so
+  // the host must be the API's own public host: the page's button calls
+  // /v1/auth/email/magic-links/open on the same origin. The default is a
+  // placeholder for development.
+  MAGIC_LINK_BASE_URL: z.url().default('https://api.alluvi.ai/auth/magic-link'),
   // The client ids an Apple / Google identity token may be issued for (its
   // `aud`), comma separated: the iOS bundle id, the Android client id, and
   // so on. Optional outside production: unset, the route answers 503.
   APPLE_CLIENT_IDS: commaList,
   GOOGLE_CLIENT_IDS: commaList,
-  // Universal Links (iOS) and App Links (Android): what lets a tap on the
-  // magic link open the app. Served at /.well-known/... once set; each file
+  // Universal Links (iOS) and App Links (Android): what lets a tap on a group
+  // invite link open the app. Served at /.well-known/... once set; each file
   // is 404 until its values are present.
   APPLE_TEAM_ID: z
     .string()

@@ -524,16 +524,19 @@ describe('magic_link_tokens', () => {
         'intent',
         'guestSessionId',
         'expiresAt',
+        'openedAt',
         'consumedAt',
         'requestedIp',
         'requestedDeviceId',
       ].sort(),
     );
     expect(columnName(columns.requestedDeviceId)).toBe('requested_device_id');
+    expect(columnName(columns.openedAt)).toBe('opened_at');
     expect(columns.email.notNull).toBe(true);
     expect(columns.tokenHash.notNull).toBe(true);
     expect(columns.intent.notNull).toBe(true);
     expect(columns.expiresAt.notNull).toBe(true);
+    expect(columns.openedAt.notNull).toBe(false);
     expect(columns.consumedAt.notNull).toBe(false);
     expect(columns.guestSessionId.notNull).toBe(false);
   });
@@ -568,6 +571,7 @@ describeWithDatabase('magic_link_tokens in the database', () => {
   it('creates an unused sign-in link that expires in the future', async () => {
     const row = await factories.magicLinkToken.create({ email: 'ann@example.com' });
     expect(row.intent).toBe('sign_in');
+    expect(row.openedAt).toBeNull();
     expect(row.consumedAt).toBeNull();
     expect(row.guestSessionId).toBeNull();
     expect(row.expiresAt.getTime()).toBeGreaterThan(Date.now());

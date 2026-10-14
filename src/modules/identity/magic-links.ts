@@ -1,12 +1,16 @@
-// Email sign-in by magic link (document 02 sections 4.2 and 4.3).
+// Email sign-in by magic link (document 02 sections 4.2 to 4.4, decision 51).
 //
-//   POST /v1/auth/email/magic-links           screen 126: send me a link
-//   POST /v1/auth/email/magic-links/consume   the app opened the link
+//   POST /v1/auth/email/magic-links              screen 126: send me a link
+//   GET  <MAGIC_LINK_BASE_URL>?token=mlt_...     the page the email opens, in any browser
+//   POST /v1/auth/email/magic-links/open         the page's "Yes, sign me in" button
+//   POST /v1/auth/email/magic-links/{id}/claim   the app polls this every 3 seconds
 //
-// The request stores a hashed single-use token bound to the install that
-// asked, and emails the link. Consuming it proves the person owns the inbox,
-// and from there the shared sign-in rules take over (sign-in.ts). Backend
-// notes, entry 44.
+// The app asks for a link and is given a request id. The person opens the
+// email wherever they like; the page asks them to confirm, and confirming
+// marks the link opened. The app's next claim call consumes the link and
+// signs in through the shared rules (sign-in.ts). Tokens only ever go to the
+// install that asked for the link, so a link seen by anyone else is useless
+// to them. Backend notes, entry 57.
 
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -19,7 +23,7 @@ import type { AccountStore } from '../../db/account-store.js';
 import type { AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { EmailSuppressionStore } from '../../db/email-suppression-store.js';
-import type { MagicLinkStore } from '../../db/magic-link-store.js';
+import type { MagicLink, MagicLinkStore } from '../../db/magic-link-store.js';
 import { magicIntentEnum } from '../../db/schema/index.js';
 import { AppError } from '../../http/errors.js';
 import { byIp, HOUR, MINUTE, SECOND } from '../../http/rate-limit.js';
@@ -27,9 +31,13 @@ import { readTimeZone } from '../../http/time-zone.js';
 import { validate } from '../../http/validate.js';
 import type { EmailProvider } from '../../providers/email/index.js';
 import { magicLinkEmail } from './magic-link-email.js';
-import { withSignInAudit } from './audit.js';
+import { magicLinkPage, type MagicLinkPageState } from './magic-link-page.js';
+import { auditSignInFailure, withSignInAudit } from './audit.js';
 import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';
+
+// How often the app should call claim while the link is pending.
+export const MAGIC_LINK_POLL_INTERVAL_SECONDS = 3;
 
 export interface MagicLinkRouteDependencies {
   magicLinks: MagicLinkStore;
@@ -61,20 +69,30 @@ export function normalizeEmail(raw: string): string {
   return email;
 }
 
-const consumeSchema = z.strictObject({
+const openSchema = z.strictObject({
   token: z.string().min(1).max(256),
+});
+
+const claimParamsSchema = z.object({ id: z.uuid() });
+
+const claimSchema = z.strictObject({
   device_install_id: installIdField,
   // Needed only when an account is created; screen 119's checkboxes.
   consents: consentsField,
-  // Set after the person confirms opening a link requested on another install.
-  confirm_device: z.boolean().default(false),
 });
 
-// Rate limit key: the requested address, when the body has one.
+// Rate limit keys.
 const byEmail = (request: FastifyRequest): string | undefined => {
   const parsed = requestSchema.safeParse(request.body);
   return parsed.success ? parsed.data.email.trim().toLowerCase() : undefined;
 };
+const byRequestId = (request: FastifyRequest): string | undefined => {
+  const parsed = claimParamsSchema.safeParse(request.params);
+  return parsed.success ? parsed.data.id : undefined;
+};
+
+const secondsUntil = (instant: Date, now: Date) =>
+  Math.max(0, Math.ceil((instant.getTime() - now.getTime()) / SECOND));
 
 export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPluginCallback {
   const now = deps.now ?? (() => new Date());
@@ -92,7 +110,7 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
     //   3. magicLinks.create(...) with everything we know.
     //   4. Build the URL: take MAGIC_LINK_BASE_URL, add ?token=mlt_....
     //   5. Send the email. If the provider throws, delete the link we just made and answer 503.
-    //   6. Answer 202 with { sent: true, resend_available_in: 30 }.
+    //   6. Answer 202 with the request id the app will poll with.
     app.post(
       '/auth/email/magic-links',
       {
@@ -157,59 +175,169 @@ export function magicLinkRoutes(deps: MagicLinkRouteDependencies): FastifyPlugin
           throw new AppError('service_unavailable');
         }
 
-        return reply
-          .code(202)
-          .send({ sent: true, resend_available_in: MAGIC_LINK_RESEND_COOLDOWN_SECONDS });
+        return reply.code(202).send({
+          sent: true,
+          resend_available_in: MAGIC_LINK_RESEND_COOLDOWN_SECONDS,
+          request_id: link.id,
+          poll_interval: MAGIC_LINK_POLL_INTERVAL_SECONDS,
+          expires_in: secondsUntil(link.expiresAt, at),
+        });
       },
     );
 
-    //  1. Validate the body, read X-Time-Zone (a new user row needs it), find the device.
-    //  2. peek the link. This throws for invalid, used or expired, without touching the row.
-    //  3. Device check: if the link was requested from a different install and confirm_device is false, throw magic_link_other_device. The link is still unused, so the app can ask "Continue on this device?" and call again with confirm_device: true.
-    //  4. consume the link. Now it is used up.
-    //  5. Build a SignInInput with provider: 'email', the address as both subjet and email, no name, the consents from the body, the guest session from the link, the device, the time zone, the IP. Call signIn.
-    //  6. Send whatever signIn returned: 201 and confirm_name for a new account, 200 for an existing one.
+    // The browser page's button. Marks the link opened; nothing is signed in
+    // here, so there is no device, time zone or consent to read.
     app.post(
-      '/auth/email/magic-links/consume',
+      '/auth/email/magic-links/open',
       {
         config: {
           auth: 'public',
           rateLimits: [
-            { name: 'magic_link.consume.ip', limit: 10, windowMs: 10 * MINUTE, keyOf: byIp },
+            { name: 'magic_link.open.ip', limit: 10, windowMs: 10 * MINUTE, keyOf: byIp },
           ],
         },
       },
       async (request, reply) => {
+        const body = validate(openSchema, request.body);
+        let link: MagicLink;
+        try {
+          link = await deps.magicLinks.open(body.token, now());
+        } catch (error) {
+          await auditSignInFailure(deps.audit, request, 'email', error);
+          throw error;
+        }
+        return reply.send({ opened: true, intent: link.intent });
+      },
+    );
+
+    //  1. Validate the id and the body, read X-Time-Zone (a new user row needs it), find the device.
+    //  2. Load the link by id. Unknown, or asked for by another install: 404, the same
+    //     answer for both so nobody can tell which (backend notes, entry 56).
+    //  3. Used or expired: say so. Not yet confirmed in the browser: answer pending.
+    //  4. Consume the link. Now it is used up.
+    //  5. Build a SignInInput with provider 'email', the address as both subject and
+    //     email, no name, the consents from the body, the guest session from the
+    //     link, the device, the time zone, the IP. Call signIn.
+    //  6. Send what signIn returned under status "ready": 201 and confirm_name for
+    //     a new account, 200 for an existing one.
+    app.post(
+      '/auth/email/magic-links/:id/claim',
+      {
+        config: {
+          auth: 'public',
+          rateLimits: [
+            // A phone polling every 3 seconds makes 20 a minute; double that.
+            { name: 'magic_link.claim.request', limit: 40, windowMs: MINUTE, keyOf: byRequestId },
+            { name: 'magic_link.claim.ip', limit: 300, windowMs: 10 * MINUTE, keyOf: byIp },
+          ],
+        },
+      },
+      async (request, reply) => {
+        const params = validate(claimParamsSchema, request.params);
+        const body = validate(claimSchema, request.body);
+        const timeZone = readTimeZone(request.headers);
+        const device = await deviceFor(body.device_install_id);
+        const at = now();
+
+        const link = await deps.magicLinks.findById(params.id);
+        if (link === undefined || link.requestedDeviceId !== device.id) {
+          throw new AppError('not_found');
+        }
+        if (link.consumedAt !== null) throw new AppError('magic_link_already_used');
+        if (link.expiresAt <= at) throw new AppError('magic_link_expired');
+
+        // A polled answer must never come from a cache (entry 56).
+        void reply.header('Cache-Control', 'no-store');
+
+        if (link.openedAt === null) {
+          return reply.send({
+            status: 'pending',
+            poll_interval: MAGIC_LINK_POLL_INTERVAL_SECONDS,
+            expires_in: secondsUntil(link.expiresAt, at),
+          });
+        }
+
         const result = await withSignInAudit(deps.audit, request, 'email', async () => {
-          const body = validate(consumeSchema, request.body);
-          const timeZone = readTimeZone(request.headers);
-          const device = await deviceFor(body.device_install_id);
-          const at = now();
-
-          // Look before using: a link opened on another install is refused
-          // without being used up, so the person can confirm and retry.
-          const pending = await deps.magicLinks.peek(body.token, at);
-          if (pending.requestedDeviceId !== device.id && !body.confirm_device) {
-            throw new AppError('magic_link_other_device');
-          }
-
-          const link = await deps.magicLinks.consume(body.token, at);
+          const consumed = await deps.magicLinks.consume(link.id, at);
           const consents = toConsentDecisions(body.consents);
           const signedIn = await signIn.signIn({
             provider: 'email',
-            subject: link.email,
-            email: link.email,
+            subject: consumed.email,
+            email: consumed.email,
             givenName: null,
             familyName: null,
             consents,
-            guestSessionId: link.guestSessionId,
+            guestSessionId: consumed.guestSessionId,
             deviceId: device.id,
             timeZone,
             ip: request.ip,
           });
           return { result: signedIn, deviceId: device.id, consents };
         });
-        return reply.code(result.status).send(result.body);
+        return reply.code(result.status).send({ status: 'ready', sign_in: result.body });
+      },
+    );
+
+    done();
+  };
+}
+
+export interface MagicLinkPageDependencies {
+  magicLinks: MagicLinkStore;
+  magicLinkBaseUrl: string;
+  now?: () => Date;
+}
+
+// The page itself, outside /v1, at the path of MAGIC_LINK_BASE_URL. It only
+// looks at the token (peek) to pick which message to show; the button on it
+// is what changes anything.
+export function magicLinkPageRoutes(deps: MagicLinkPageDependencies): FastifyPluginCallback {
+  const now = deps.now ?? (() => new Date());
+  const path = new URL(deps.magicLinkBaseUrl).pathname;
+
+  const stateOf = (error: unknown): MagicLinkPageState => {
+    if (error instanceof AppError) {
+      if (error.code === 'magic_link_expired') return 'expired';
+      if (error.code === 'magic_link_already_used') return 'used';
+      if (error.code === 'magic_link_invalid') return 'invalid';
+    }
+    throw error;
+  };
+
+  return (app, _options, done) => {
+    app.get(
+      path,
+      {
+        config: {
+          auth: 'public',
+          rateLimits: [
+            { name: 'magic_link.page.ip', limit: 30, windowMs: 10 * MINUTE, keyOf: byIp },
+          ],
+        },
+      },
+      async (request, reply) => {
+        const query = request.query as { token?: unknown };
+        const token = typeof query.token === 'string' ? query.token : '';
+
+        let html: string;
+        if (token === '') {
+          html = magicLinkPage({ state: 'invalid' });
+        } else {
+          try {
+            const link = await deps.magicLinks.peek(token, now());
+            html = magicLinkPage({
+              state: link.openedAt === null ? 'confirm' : 'opened',
+              email: link.email,
+              intent: link.intent,
+            });
+          } catch (error) {
+            html = magicLinkPage({ state: stateOf(error) });
+          }
+        }
+        return reply
+          .type('text/html; charset=utf-8')
+          .header('Cache-Control', 'no-store')
+          .send(html);
       },
     );
 

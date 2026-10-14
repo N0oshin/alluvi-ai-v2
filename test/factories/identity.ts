@@ -94,6 +94,7 @@ export const magicLinkToken = defineFactory(magicLinkTokens, () => {
     intent: 'sign_in' as const,
     guestSessionId: null,
     expiresAt: new Date(Date.now() + 15 * MINUTE_MS),
+    openedAt: null,
     consumedAt: null,
     requestedIp: '203.0.113.7',
     requestedDeviceId: uuidv7(),

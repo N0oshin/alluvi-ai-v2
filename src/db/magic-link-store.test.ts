@@ -36,6 +36,7 @@ describeWithDatabase('createMagicLinkStore', () => {
     const { link, token } = await store().create(await aRequest(), now);
     expect(token).toMatch(/^mlt_/);
     expect(link.expiresAt.getTime()).toBe(now.getTime() + MAGIC_LINK_LIFETIME_MS);
+    expect(link.openedAt).toBeNull();
 
     const [row] = await testDb()
       .select()
@@ -45,38 +46,61 @@ describeWithDatabase('createMagicLinkStore', () => {
     expect(JSON.stringify(row)).not.toContain(token);
   });
 
-  it('peeks without using up, consumes once, then reports already used', async () => {
-    const { token } = await store().create(await aRequest(), now);
+  it('peeks without changing anything, opens once, then consumes once by id', async () => {
+    const { link, token } = await store().create(await aRequest(), now);
     const peeked = await store().peek(token, now);
+    expect(peeked.openedAt).toBeNull();
     expect(peeked.consumedAt).toBeNull();
 
-    const consumed = await store().consume(token, now);
-    expect(consumed.consumedAt?.getTime()).toBe(now.getTime());
+    const opened = await store().open(token, now);
+    expect(opened.openedAt?.getTime()).toBe(now.getTime());
+    // A second confirm keeps the first time.
+    const later = new Date(now.getTime() + 5000);
+    expect((await store().open(token, later)).openedAt?.getTime()).toBe(now.getTime());
 
-    await expect(store().peek(token, now)).rejects.toMatchObject({
+    const found = await store().findById(link.id);
+    expect(found?.openedAt?.getTime()).toBe(now.getTime());
+
+    const consumed = await store().consume(link.id, later);
+    expect(consumed.consumedAt?.getTime()).toBe(later.getTime());
+
+    await expect(store().peek(token, later)).rejects.toMatchObject({
       code: 'magic_link_already_used',
     });
-    await expect(store().consume(token, now)).rejects.toMatchObject({
+    await expect(store().open(token, later)).rejects.toMatchObject({
+      code: 'magic_link_already_used',
+    });
+    await expect(store().consume(link.id, later)).rejects.toMatchObject({
       code: 'magic_link_already_used',
     });
   });
 
-  it('refuses unknown and expired tokens', async () => {
-    await expect(store().consume('mlt_nope', now)).rejects.toMatchObject({
+  it('refuses unknown and expired links', async () => {
+    await expect(store().open('mlt_nope', now)).rejects.toMatchObject({
       code: 'magic_link_invalid',
     });
-    const { token } = await store().create(await aRequest(), now);
+    expect(await store().findById('00000000-0000-7000-8000-000000000000')).toBeUndefined();
+    await expect(
+      store().consume('00000000-0000-7000-8000-000000000000', now),
+    ).rejects.toMatchObject({ code: 'magic_link_invalid' });
+
+    const { link, token } = await store().create(await aRequest(), now);
     const late = new Date(now.getTime() + MAGIC_LINK_LIFETIME_MS + 1);
-    await expect(store().consume(token, late)).rejects.toMatchObject({
+    await expect(store().open(token, late)).rejects.toMatchObject({
       code: 'magic_link_expired',
     });
+    await expect(store().consume(link.id, late)).rejects.toMatchObject({
+      code: 'magic_link_expired',
+    });
+    // An expired consume must not have marked the row used.
+    expect((await store().findById(link.id))?.consumedAt).toBeNull();
   });
 
   it('lets exactly one of two simultaneous consumes win', async () => {
-    const { token } = await store().create(await aRequest(), now);
+    const { link } = await store().create(await aRequest(), now);
     const results = await Promise.allSettled([
-      store().consume(token, now),
-      store().consume(token, now),
+      store().consume(link.id, now),
+      store().consume(link.id, now),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
   });

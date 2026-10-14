@@ -30,17 +30,25 @@ function lastToken(email: FakeEmail): string {
   return match[1];
 }
 
+// Request a link, confirm it as the browser page would, and claim it as the
+// app would (decision 51).
 async function signUpByEmail(app: ReturnType<typeof buildApp>, email: FakeEmail) {
-  await app.inject({
+  const requested = await app.inject({
     method: 'POST',
     url: '/v1/auth/email/magic-links',
     payload: { email: 'ann@example.com', intent: 'sign_up', device_install_id: install },
   });
+  const { request_id: id } = requested.json<{ request_id: string }>();
+  await app.inject({
+    method: 'POST',
+    url: '/v1/auth/email/magic-links/open',
+    payload: { token: lastToken(email) },
+  });
   return app.inject({
     method: 'POST',
-    url: '/v1/auth/email/magic-links/consume',
+    url: `/v1/auth/email/magic-links/${id}/claim`,
     headers: { 'x-time-zone': 'Europe/London' },
-    payload: { token: lastToken(email), device_install_id: install, consents: [terms, marketing] },
+    payload: { device_install_id: install, consents: [terms, marketing] },
   });
 }
 
@@ -70,9 +78,8 @@ describe('audit log', () => {
     const { app } = await setup(audit);
     const response = await app.inject({
       method: 'POST',
-      url: '/v1/auth/email/magic-links/consume',
-      headers: { 'x-time-zone': 'Europe/London' },
-      payload: { token: 'mlt_never-issued', device_install_id: install },
+      url: '/v1/auth/email/magic-links/open',
+      payload: { token: 'mlt_never-issued' },
     });
     expect(response.statusCode).toBe(401);
 
@@ -92,7 +99,7 @@ describe('audit log', () => {
     const { app } = await setup(audit);
     const response = await app.inject({
       method: 'POST',
-      url: '/v1/auth/email/magic-links/consume',
+      url: '/v1/auth/email/magic-links/open',
       payload: {},
     });
     expect(response.statusCode).toBe(422);

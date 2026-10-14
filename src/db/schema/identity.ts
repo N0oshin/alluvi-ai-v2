@@ -176,6 +176,9 @@ export const magicLinkTokens = pgTable(
     intent: magicIntentEnum().notNull(),
     guestSessionId: uuid().references(() => guestSessions.id, { onDelete: 'set null' }),
     expiresAt: instant().notNull(),
+    // Set when the person confirms on the browser page the email opens.
+    // The app's next claim call then signs in and sets consumedAt (decision 51).
+    openedAt: instant(),
     consumedAt: instant(),
     requestedIp: inet(),
     requestedDeviceId: uuid(),

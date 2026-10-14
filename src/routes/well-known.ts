@@ -1,5 +1,5 @@
-// The two files that let a tap on a magic link open the app instead of the
-// browser (document 04 Phase 2.3, "Universal Link / App Link domain
+// The two files that let a tap on a group invite link open the app instead
+// of the browser (document 04 Phase 2.3, "Universal Link / App Link domain
 // verification files"). The phones fetch them from the link's domain:
 //
 //   GET /.well-known/apple-app-site-association   iOS Universal Links
@@ -7,6 +7,9 @@
 //
 // Each one says "the app with this id may handle these URLs". Without them
 // the OS refuses to hand the URL to the app. Backend notes, entry 48.
+//
+// Magic links are deliberately not listed here (decision 51): they open a
+// browser page served by this app, and the phone polls for the result.
 
 import type { FastifyPluginCallback } from 'fastify';
 
@@ -15,7 +18,8 @@ export interface AppLinkConfig {
   iosBundleId: string | undefined;
   androidPackageName: string | undefined;
   androidCertSha256: string[] | undefined;
-  // The path the links use, from MAGIC_LINK_BASE_URL; e.g. '/auth/magic-link'.
+  // The path prefix the app handles; e.g. '/groups/' for invite links
+  // (document 02 section 12.9: https://alluvi.app/groups/9aR4k2).
   linkPath: string;
 }
 
@@ -24,8 +28,7 @@ export interface WellKnownDependencies {
 }
 
 // Apple's file. `appIDs` plus `components` is the current form (iOS 13+);
-// `appID` plus `paths` is kept for older systems. The `?` component means
-// "only URLs that carry a token query parameter".
+// `appID` plus `paths` is kept for older systems.
 export function appleAppSiteAssociation(config: AppLinkConfig): object | undefined {
   if (config.appleTeamId === undefined || config.iosBundleId === undefined) return undefined;
   const appId = `${config.appleTeamId}.${config.iosBundleId}`;
@@ -37,7 +40,7 @@ export function appleAppSiteAssociation(config: AppLinkConfig): object | undefin
           appID: appId,
           appIDs: [appId],
           paths: [`${config.linkPath}*`],
-          components: [{ '/': config.linkPath, '?': { token: '*' } }],
+          components: [{ '/': `${config.linkPath}*` }],
         },
       ],
     },

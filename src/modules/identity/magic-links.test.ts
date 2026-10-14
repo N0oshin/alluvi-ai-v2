@@ -4,6 +4,7 @@ import { fakeDeps } from '../../../test/app-deps.js';
 import { buildApp } from '../../app.js';
 import { MAGIC_LINK_LIFETIME_MS } from '../../auth/magic-link-token.js';
 import { memoryAccountStore } from '../../db/account-store.js';
+import { memoryAuditStore } from '../../db/audit-store.js';
 import type { ErrorDetail } from '../../http/errors.js';
 import { fakeEmail, type FakeEmail } from '../../providers/email/index.js';
 import { fakeProviders } from '../../providers/index.js';
@@ -12,6 +13,18 @@ import type { SignInBody } from './sign-in.js';
 interface ErrorBody {
   error: { code: string; details: ErrorDetail[] };
 }
+
+interface RequestedBody {
+  sent: boolean;
+  resend_available_in: number;
+  request_id: string;
+  poll_interval: number;
+  expires_in: number;
+}
+
+type ClaimBody =
+  | { status: 'pending'; poll_interval: number; expires_in: number }
+  | { status: 'ready'; sign_in: SignInBody };
 
 const install = 'install-aaaa-0000';
 const otherInstall = 'install-bbbb-0000';
@@ -25,7 +38,8 @@ const terms = { type: 'terms_and_privacy', version: '2026-09', granted: true };
 async function setup() {
   const email = fakeEmail();
   const accounts = memoryAccountStore();
-  const deps = fakeDeps({ providers: { ...fakeProviders(), email }, accounts });
+  const audit = memoryAuditStore();
+  const deps = fakeDeps({ providers: { ...fakeProviders(), email }, accounts, audit });
   const app = buildApp(deps);
   for (const installId of [install, otherInstall]) {
     await deps.devices.register(
@@ -33,18 +47,31 @@ async function setup() {
       new Date(),
     );
   }
-  return { deps, app, email, accounts };
+  return { deps, app, email, accounts, audit };
 }
 
-function request(app: ReturnType<typeof buildApp>, body: object) {
+type App = ReturnType<typeof buildApp>;
+
+function request(app: App, body: object) {
   return app.inject({ method: 'POST', url: '/v1/auth/email/magic-links', payload: body });
 }
 
-function consume(app: ReturnType<typeof buildApp>, body: object, timeZone = 'Europe/London') {
+function page(app: App, token: string | undefined) {
+  return app.inject({
+    method: 'GET',
+    url: token === undefined ? '/auth/magic-link' : `/auth/magic-link?token=${token}`,
+  });
+}
+
+function open(app: App, token: string) {
+  return app.inject({ method: 'POST', url: '/v1/auth/email/magic-links/open', payload: { token } });
+}
+
+function claim(app: App, id: string, body: object, timeZone: string | undefined = 'Europe/London') {
   return app.inject({
     method: 'POST',
-    url: '/v1/auth/email/magic-links/consume',
-    headers: { 'x-time-zone': timeZone },
+    url: `/v1/auth/email/magic-links/${id}/claim`,
+    headers: timeZone === undefined ? {} : { 'x-time-zone': timeZone },
     payload: body,
   });
 }
@@ -58,8 +85,21 @@ function lastToken(email: FakeEmail): string {
   return match[1];
 }
 
+// Request a sign-up link for `address` and return what the app and the
+// email each got.
+async function requested(app: App, email: FakeEmail, address: string, extra: object = {}) {
+  const response = await request(app, {
+    email: address,
+    intent: 'sign_up',
+    device_install_id: install,
+    ...extra,
+  });
+  expect(response.statusCode).toBe(202);
+  return { id: response.json<RequestedBody>().request_id, token: lastToken(email) };
+}
+
 describe('POST /v1/auth/email/magic-links', () => {
-  it('sends a link for sign_up and answers 202 with the cooldown', async () => {
+  it('sends a link for sign_up and answers 202 with the request id and the cooldown', async () => {
     const { app, email } = await setup();
     const response = await request(app, {
       email: '  Hamish@Example.com ',
@@ -67,7 +107,10 @@ describe('POST /v1/auth/email/magic-links', () => {
       device_install_id: install,
     });
     expect(response.statusCode).toBe(202);
-    expect(response.json()).toEqual({ sent: true, resend_available_in: 30 });
+    const body = response.json<RequestedBody>();
+    expect(body).toMatchObject({ sent: true, resend_available_in: 30, poll_interval: 3 });
+    expect(body.request_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body.expires_in).toBe(MAGIC_LINK_LIFETIME_MS / 1000);
 
     const [message] = email.sent;
     expect(message?.to).toBe('hamish@example.com');
@@ -150,30 +193,95 @@ describe('POST /v1/auth/email/magic-links', () => {
   });
 });
 
-describe('POST /v1/auth/email/magic-links/consume', () => {
-  it('creates the account on first use: 201 with tokens, then refuses a second use', async () => {
+describe('GET /auth/magic-link (the page the email opens)', () => {
+  it('shows the confirm button with a masked address, and never the token', async () => {
+    const { app, email } = await setup();
+    const { token } = await requested(app, email, 'hamish@example.com');
+
+    const response = await page(app, token);
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toContain('Yes, sign me in');
+    expect(response.body).toContain('h•••••@example.com');
+    expect(response.body).not.toContain('hamish@example.com');
+    expect(response.body).not.toContain(token);
+  });
+
+  it('shows the right message for a missing, unknown, used and confirmed link', async () => {
+    const { app, email } = await setup();
+    expect((await page(app, undefined)).body).toContain('not valid');
+    expect((await page(app, 'mlt_never-issued')).body).toContain('not valid');
+
+    const { id, token } = await requested(app, email, 'new@example.com');
+    await open(app, token);
+    expect((await page(app, token)).body).toContain("You're signed in");
+
+    await claim(app, id, { device_install_id: install, consents: [terms] });
+    expect((await page(app, token)).body).toContain('already used');
+  });
+});
+
+describe('POST /v1/auth/email/magic-links/open', () => {
+  it('marks the link opened, and a second confirm is harmless', async () => {
+    const { app, email } = await setup();
+    const { token } = await requested(app, email, 'new@example.com');
+
+    const first = await open(app, token);
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toEqual({ opened: true, intent: 'sign_up' });
+    expect((await open(app, token)).statusCode).toBe(200);
+  });
+
+  it('refuses an unknown token with 401 and a used one with 409, recording the failure', async () => {
+    const { app, audit, email } = await setup();
+    const unknown = await open(app, 'mlt_never-issued');
+    expect(unknown.statusCode).toBe(401);
+    expect(unknown.json<ErrorBody>().error.code).toBe('magic_link_invalid');
+    expect(audit.entries.at(-1)).toMatchObject({
+      action: 'auth.sign_in_failed',
+      metadata: { provider: 'email', code: 'magic_link_invalid' },
+    });
+
+    const { id, token } = await requested(app, email, 'new@example.com');
+    await open(app, token);
+    await claim(app, id, { device_install_id: install, consents: [terms] });
+    const used = await open(app, token);
+    expect(used.statusCode).toBe(409);
+    expect(used.json<ErrorBody>().error.code).toBe('magic_link_already_used');
+  });
+});
+
+describe('POST /v1/auth/email/magic-links/{id}/claim', () => {
+  it('answers pending until the link is confirmed, then creates the account with 201', async () => {
     const { app, deps, email, accounts } = await setup();
     const guest = await deps.guestSessions.create(randomUUID(), new Date());
-    await request(app, {
-      email: 'hamish@example.com',
-      intent: 'sign_up',
-      device_install_id: install,
+    const { id, token } = await requested(app, email, 'hamish@example.com', {
       guest_session_id: guest.guestSession.id,
     });
-    const token = lastToken(email);
 
-    const first = await consume(app, { token, device_install_id: install, consents: [terms] });
-    expect(first.statusCode).toBe(201);
-    const body = first.json<SignInBody>();
-    expect(body.is_new_user).toBe(true);
-    expect(body.next_step).toBe('confirm_name');
-    expect(body.user.first_name).toBe('hamish');
-    expect(body.refresh_token).toMatch(/^rft_/);
+    const waiting = await claim(app, id, { device_install_id: install, consents: [terms] });
+    expect(waiting.statusCode).toBe(200);
+    expect(waiting.headers['cache-control']).toBe('no-store');
+    expect(waiting.json<ClaimBody>()).toMatchObject({ status: 'pending', poll_interval: 3 });
+    expect(accounts.claimedGuestSessions).toEqual([]);
+
+    await open(app, token);
+
+    const ready = await claim(app, id, { device_install_id: install, consents: [terms] });
+    expect(ready.statusCode).toBe(201);
+    const body = ready.json<ClaimBody>();
+    if (body.status !== 'ready') throw new Error('expected ready');
+    expect(body.sign_in.is_new_user).toBe(true);
+    expect(body.sign_in.next_step).toBe('confirm_name');
+    expect(body.sign_in.user.first_name).toBe('hamish');
+    expect(body.sign_in.refresh_token).toMatch(/^rft_/);
     expect(accounts.claimedGuestSessions).toEqual([guest.guestSession.id]);
 
-    const second = await consume(app, { token, device_install_id: install, consents: [terms] });
-    expect(second.statusCode).toBe(409);
-    expect(second.json<ErrorBody>().error.code).toBe('magic_link_already_used');
+    // The link is used up: another poll is refused, never a second sign-in.
+    const again = await claim(app, id, { device_install_id: install, consents: [terms] });
+    expect(again.statusCode).toBe(409);
+    expect(again.json<ErrorBody>().error.code).toBe('magic_link_already_used');
   });
 
   it('signs an existing account in with 200', async () => {
@@ -181,57 +289,59 @@ describe('POST /v1/auth/email/magic-links/consume', () => {
     accounts.addUser({ email: 'hamish@example.com', username: 'h', firstName: 'Hamish' }, [
       { provider: 'email', subject: 'hamish@example.com' },
     ]);
-    await request(app, {
+    const response = await request(app, {
       email: 'hamish@example.com',
       intent: 'sign_in',
       device_install_id: install,
     });
+    const id = response.json<RequestedBody>().request_id;
+    await open(app, lastToken(email));
 
-    const response = await consume(app, { token: lastToken(email), device_install_id: install });
-    expect(response.statusCode).toBe(200);
-    expect(response.json<SignInBody>().is_new_user).toBe(false);
+    const ready = await claim(app, id, { device_install_id: install });
+    expect(ready.statusCode).toBe(200);
+    const body = ready.json<ClaimBody>();
+    if (body.status !== 'ready') throw new Error('expected ready');
+    expect(body.sign_in.is_new_user).toBe(false);
   });
 
-  it('needs the terms consent to create an account, and does not use the link up', async () => {
+  it('needs the terms consent to create an account, and the link is used up by then', async () => {
     const { app, email } = await setup();
-    await request(app, { email: 'new@example.com', intent: 'sign_up', device_install_id: install });
-    const token = lastToken(email);
+    const { id, token } = await requested(app, email, 'new@example.com');
+    await open(app, token);
 
-    const refused = await consume(app, { token, device_install_id: install });
+    const refused = await claim(app, id, { device_install_id: install });
     expect(refused.statusCode).toBe(422);
     expect(refused.json<ErrorBody>().error.code).toBe('consent_required');
-    // The consume above marked the link used before sign-in refused, so the
-    // person must request a new link. Documented in 02 §4.3.
-    const retry = await consume(app, { token, device_install_id: install, consents: [terms] });
+    // Documented in 02 §4.4: the person requests a new link.
+    const retry = await claim(app, id, { device_install_id: install, consents: [terms] });
     expect(retry.statusCode).toBe(409);
   });
 
-  it('refuses a link opened on another install until the person confirms', async () => {
+  it('answers 404 to another install and to an unknown id, 422 to a malformed one', async () => {
     const { app, email } = await setup();
-    await request(app, { email: 'new@example.com', intent: 'sign_up', device_install_id: install });
-    const token = lastToken(email);
+    const { id, token } = await requested(app, email, 'new@example.com');
+    await open(app, token);
 
-    const other = await consume(app, { token, device_install_id: otherInstall, consents: [terms] });
-    expect(other.statusCode).toBe(409);
-    expect(other.json<ErrorBody>().error.code).toBe('magic_link_other_device');
+    const other = await claim(app, id, { device_install_id: otherInstall, consents: [terms] });
+    expect(other.statusCode).toBe(404);
+    expect(other.json<ErrorBody>().error.code).toBe('not_found');
 
-    const confirmed = await consume(app, {
-      token,
-      device_install_id: otherInstall,
-      consents: [terms],
-      confirm_device: true,
-    });
-    expect(confirmed.statusCode).toBe(201);
+    const unknown = await claim(app, randomUUID(), { device_install_id: install });
+    expect(unknown.statusCode).toBe(404);
+
+    const malformed = await claim(app, 'not-a-uuid', { device_install_id: install });
+    expect(malformed.statusCode).toBe(422);
+    expect(malformed.json<ErrorBody>().error.details[0]?.field).toBe('id');
+
+    // The link is still live for the install that asked.
+    const mine = await claim(app, id, { device_install_id: install, consents: [terms] });
+    expect(mine.statusCode).toBe(201);
   });
 
-  it('refuses an unknown token with 401 and an expired one with 410', async () => {
+  it('answers 410 once the link has expired', async () => {
     const { app, deps } = await setup();
-    const unknown = await consume(app, { token: 'mlt_never-issued', device_install_id: install });
-    expect(unknown.statusCode).toBe(401);
-    expect(unknown.json<ErrorBody>().error.code).toBe('magic_link_invalid');
-
-    // Expiry, through the store: the route passes its own clock, so the
-    // store is asked directly with a later time.
+    // Through the store with its own clock: the route reads the row's
+    // expiry, so a row created in the past is enough.
     const device = await deps.devices.findByInstallId(install);
     const issued = await deps.magicLinks.create(
       {
@@ -241,22 +351,17 @@ describe('POST /v1/auth/email/magic-links/consume', () => {
         requestedDeviceId: device?.id ?? '',
         requestedIp: null,
       },
-      new Date('2026-10-09T10:00:00Z'),
+      new Date(Date.now() - MAGIC_LINK_LIFETIME_MS - 1000),
     );
-    const late = new Date(Date.parse('2026-10-09T10:00:00Z') + MAGIC_LINK_LIFETIME_MS + 1);
-    await expect(deps.magicLinks.peek(issued.token, late)).rejects.toMatchObject({
-      code: 'magic_link_expired',
-    });
+    const response = await claim(app, issued.link.id, { device_install_id: install });
+    expect(response.statusCode).toBe(410);
+    expect(response.json<ErrorBody>().error.code).toBe('magic_link_expired');
   });
 
   it('requires the X-Time-Zone header', async () => {
     const { app, email } = await setup();
-    await request(app, { email: 'new@example.com', intent: 'sign_up', device_install_id: install });
-    const response = await app.inject({
-      method: 'POST',
-      url: '/v1/auth/email/magic-links/consume',
-      payload: { token: lastToken(email), device_install_id: install, consents: [terms] },
-    });
+    const { id } = await requested(app, email, 'new@example.com');
+    const response = await claim(app, id, { device_install_id: install }, undefined);
     expect(response.statusCode).toBe(422);
     expect(response.json<ErrorBody>().error.details[0]?.field).toBe('X-Time-Zone');
   });

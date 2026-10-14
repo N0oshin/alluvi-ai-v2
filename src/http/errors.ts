@@ -10,7 +10,7 @@ export const ERROR_CODES = {
   malformed_request: { status: 400, message: 'The request could not be read.' },
   unauthenticated: { status: 401, message: 'Sign in to continue.' },
   // A rotated refresh token was presented again; the session has been revoked
-  // (document 02 section 4.4, backend notes entry 39).
+  // (document 02 section 4.5, backend notes entry 39).
   refresh_token_reused: { status: 401, message: 'Your session has ended. Sign in again.' },
   // Unknown or malformed magic link token (document 02 section 4.3).
   magic_link_invalid: { status: 401, message: 'This link is not valid.' },
@@ -28,14 +28,8 @@ export const ERROR_CODES = {
     status: 409,
     message: 'This email is already linked to an account that signs in another way.',
   },
-  // Magic link consumption (document 02 section 4.3).
+  // Magic link open and claim (document 02 sections 4.3 and 4.4).
   magic_link_already_used: { status: 409, message: 'This link has already been used.' },
-  // The link was opened on a different install than requested it; the app
-  // asks the person to confirm and retries with confirm_device: true.
-  magic_link_other_device: {
-    status: 409,
-    message: 'This link was requested from a different device.',
-  },
   // A plan was requested before every required onboarding answer was saved;
   // `details` lists the missing ones (document 02 section 3.4).
   onboarding_incomplete: {

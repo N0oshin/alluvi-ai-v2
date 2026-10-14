@@ -92,6 +92,13 @@
       "when": 1791809227569,
       "tag": "0012_onboarding_responses_and_plan_generations",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791975864586,
+      "tag": "0013_magic_link_tokens_opened_at",
+      "breakpoints": true
     }
   ]
 }
