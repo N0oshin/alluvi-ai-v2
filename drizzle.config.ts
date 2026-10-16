@@ -15,7 +15,7 @@ export default defineConfig({
   dialect: 'postgresql',
 
   // The one entry point drizzle-kit reads. I
-  schema: './src/db/schema/index.ts',
+  schema: './src/db/schema.ts',
 
   // Where the generated SQL files and their snapshots are written. Committed.
   out: './src/db/migrations',

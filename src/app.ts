@@ -1,67 +1,35 @@
-// Builds the application without starting a network listener
+// Builds the application without starting a network listener.
 
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import type { AccessTokenService } from './shared/auth/access-token.js';
-import type { AccountStore } from './db/account-store.js';
-import type { AuditStore } from './db/audit-store.js';
-import type { DeviceStore } from './db/device-store.js';
-import type { EmailSuppressionStore } from './db/email-suppression-store.js';
-import type { GuestSessionStore } from './db/guest-session-store.js';
-import type { MagicLinkStore } from './db/magic-link-store.js';
-import type { OnboardingStore } from './db/onboarding-store.js';
-import type { PlanGenerationStore } from './db/plan-generation-store.js';
-import { magicLinkPageRoutes } from './modules/identity/magic-links.js';
-import type { IdentityTokenVerifiers } from './modules/identity/social-sign-in.js';
-import type { SessionStore } from './db/session-store.js';
+import type { JobPayloads } from './jobs/definitions.js';
+import type { JobQueue } from './jobs/queue.js';
+import { webhookRoutes } from './modules/email/index.js';
+import {
+  identityRoutes,
+  magicLinkPageRoutes,
+  resolveGuestSession,
+} from './modules/identity/index.js';
+import { onboardingRoutes } from './modules/onboarding/index.js';
+import type { Providers } from './providers/index.js';
+import { accessTokens } from './shared/auth/access-token.js';
 import { addAuthentication, type Principal } from './shared/http/auth.js';
 import { addErrorHandling } from './shared/http/error-handler.js';
+import { healthRoutes, type HealthDependencies } from './shared/http/health.js';
 import { addIdempotency, type IdempotencyStore } from './shared/http/idempotency.js';
 import { RequestLogController } from './shared/http/logging.js';
 import { addRateLimiting, type RateLimitStore } from './shared/http/rate-limit.js';
 import { addRequestIdHeader, generateRequestId } from './shared/http/request-id.js';
-import type { JobPayloads } from './jobs/definitions.js';
-import type { JobQueue } from './jobs/queue.js';
-import type { Providers } from './providers/index.js';
-import { healthRoutes, type HealthDependencies } from './shared/http/health.js';
-import { v1Routes } from './routes/v1.js';
-import { webhookRoutes } from './routes/webhooks.js';
 import { wellKnownRoutes, type AppLinkConfig } from './shared/http/well-known.js';
 
-// Everything the app needs from the outside world (database, and later
-// storage, email and so on).
+// What differs between a real run and a test: the external services, the job
+// queue, and the two middleware stores. Modules import everything else.
 export type AppDependencies = HealthDependencies & {
   idempotencyStore: IdempotencyStore;
   rateLimitStore: RateLimitStore;
   // Background jobs the routes enqueue. Handlers run in the worker process.
   jobs: JobQueue<JobPayloads>;
-  // The external services (vision, email, push, storage).
   providers: Providers;
-  // Issues and verifies access tokens; resolves guest tokens (Phase 2.2).
-  accessTokens: AccessTokenService;
-  guestSessions: GuestSessionStore;
-  devices: DeviceStore;
-  // Account creation and sign-in reads (Phase 2.3).
-  accounts: AccountStore;
-  // Signed-in sessions: refresh and logout (Phase 2.3).
-  sessions: SessionStore;
-  // Email sign-in links and where they point. The page at that URL is served
-  // by this app, so the URL must be on this app's host (Phase 2.3, decision 51).
-  magicLinks: MagicLinkStore;
-  magicLinkBaseUrl: string;
-  // Append-only record of sign-ins, failures, logouts and consents (Phase 2.4).
-  audit: AuditStore;
-  // Questionnaire answers for guests and users (Phase 3.2).
-  onboarding: OnboardingStore;
-  // Plan builds started from the onboarding answers (Phase 3.3).
-  planGenerations: PlanGenerationStore;
-  // Apple and Google identity token verifiers, each absent when not
-  // configured (Phase 2.3).
-  identityTokens: IdentityTokenVerifiers;
-  // Addresses that bounced or complained; written by the Resend webhook,
-  // checked before sending (Phase 2.3).
-  emailSuppressions: EmailSuppressionStore;
-  resendWebhookSecret: string | undefined;
-  // Universal Link / App Link files, for group invite links (Phase 2.3).
+  // Universal Link / App Link files, for group invite links.
   appLinks: AppLinkConfig;
 };
 
@@ -92,27 +60,32 @@ export function buildApp(deps: AppDependencies, options: AppOptions = {}): Fasti
   });
 
   addRequestIdHeader(app);
-
   addErrorHandling(app);
 
   // Who is calling, before anything that depends on it.
-  addAuthentication(app, { accessTokens: deps.accessTokens, guestSessions: deps.guestSessions });
-
+  addAuthentication(app, { accessTokens, resolveGuest: resolveGuestSession });
   addRateLimiting(app, { store: deps.rateLimitStore });
-
   addIdempotency(app, {
     store: deps.idempotencyStore,
     subjectOf: (request) => subjectOf(request.principal),
   });
 
+  // Outside /v1: operations, other services, and the browser.
   void app.register(healthRoutes(deps), { prefix: '/health' });
-  void app.register(webhookRoutes(deps), { prefix: '/webhooks' });
+  void app.register(webhookRoutes(), { prefix: '/webhooks' });
   void app.register(wellKnownRoutes(deps), { prefix: '/.well-known' });
-  // The page a magic link email opens, at the path of MAGIC_LINK_BASE_URL.
-  void app.register(magicLinkPageRoutes(deps));
+  void app.register(magicLinkPageRoutes());
 
-  // Every route inside v1Routes gets "/v1" in front of its path.
-  void app.register(v1Routes(deps), { prefix: '/v1' });
+  // Every module's routes, under /v1.
+  void app.register(
+    (v1, _options, done) => {
+      v1.get('/ping', () => ({ pong: true }));
+      void v1.register(identityRoutes(deps.providers));
+      void v1.register(onboardingRoutes(deps.jobs));
+      done();
+    },
+    { prefix: '/v1' },
+  );
 
   return app;
 }

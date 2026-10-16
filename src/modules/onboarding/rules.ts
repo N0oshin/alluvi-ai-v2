@@ -1,8 +1,9 @@
-// The questionnaire's business rules as plain functions: no HTTP, no database.
-// The route (responses.ts) calls them; the tests call them with a table.
+// The questionnaire's business rules as plain functions: no HTTP, no
+// database. The routes and the job call them; the tests call them directly.
 
-import type { OnboardingResponse } from '../../db/onboarding-store.js';
-import type { EnumValue, weightGoalDirectionEnum } from '../../db/schema/index.js';
+import type { EnumValue, weightGoalDirectionEnum } from '../../shared/schema.js';
+import type { PlanResult } from './plan-calculator.js';
+import type { OnboardingResponse } from './queries.js';
 
 type Goal = EnumValue<typeof weightGoalDirectionEnum>;
 
@@ -57,11 +58,11 @@ export const REQUIRED_ANSWERS = [
 ] as const;
 
 // 'sex' | 'workoutFrequency' | ... built from the list above, so the type and
-// the list cannot drift apart (TypeScript notes entries 18 and 39).
+// the list cannot drift apart.
 export type RequiredAnswer = (typeof REQUIRED_ANSWERS)[number];
 
-// The required answers that are still empty, in screen order. An empty result
-// means the questionnaire is complete.
+// The required answers that are still empty, in screen order. An empty
+// result means the questionnaire is complete.
 export function missingAnswers(
   answers: Pick<OnboardingResponse, RequiredAnswer>,
 ): RequiredAnswer[] {
@@ -73,8 +74,8 @@ export const toSnakeCase = (name: string): string =>
   name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 // Whole completed years on the given date. `birthDate` is YYYY-MM-DD; the
-// date is read in UTC so the answer does not depend on the server's time zone.
-// The calculator receives this number and never looks at a clock itself.
+// date is read in UTC so the answer does not depend on the server's time
+// zone. The calculator receives this number and never looks at a clock.
 export function ageInYears(birthDate: string, on: Date): number {
   const year = Number(birthDate.slice(0, 4));
   const month = Number(birthDate.slice(5, 7));
@@ -83,4 +84,27 @@ export function ageInYears(birthDate: string, on: Date): number {
   const monthNow = on.getUTCMonth() + 1;
   const birthdayPassed = monthNow > month || (monthNow === month && on.getUTCDate() >= day);
   return on.getUTCFullYear() - year - (birthdayPassed ? 0 : 1);
+}
+
+// The plan as stored in `plan_generations.result` and returned by
+// GET /v1/onboarding/plan-generations/{id}: the calculator's camelCase result
+// in the API's snake_case shape. Written once so the job (which stores it)
+// and the route (which returns it) cannot disagree about the field names.
+export function toPlanResultBody(plan: PlanResult) {
+  return {
+    headline: { direction: plan.headline.direction, delta_kg: plan.headline.deltaKg },
+    calories_kcal: plan.caloriesKcal,
+    protein_g: plan.proteinG,
+    carbs_g: plan.carbsG,
+    fat_g: plan.fatG,
+    fiber_g: plan.fiberG,
+    sugar_g: plan.sugarG,
+    sodium_mg: plan.sodiumMg,
+    water_ml: plan.waterMl,
+    current_weight_kg: plan.currentWeightKg,
+    target_weight_kg: plan.targetWeightKg,
+    activity_level: plan.activityLevel,
+    warnings: plan.warnings,
+    algorithm_version: plan.algorithmVersion,
+  };
 }

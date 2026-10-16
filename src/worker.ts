@@ -5,28 +5,24 @@
 
 import pino from 'pino';
 import { config } from './config/index.js';
-import { createGuestSessionStore } from './db/guest-session-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { db, pool } from './db/index.js';
-import { createMagicLinkStore } from './db/magic-link-store.js';
-import { createOnboardingStore } from './db/onboarding-store.js';
-import { createPlanGenerationStore } from './db/plan-generation-store.js';
 import { createOutboxStore } from './db/outbox.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
-import { loggerOptions } from './shared/http/logging.js';
 import { jobs } from './jobs/definitions.js';
 import { buildHandlers } from './jobs/handlers/index.js';
 import type { OutboxConsumers } from './jobs/handlers/outbox.js';
 import { createPgBoss } from './jobs/runner.js';
 import { schedules } from './jobs/schedules.js';
 import { buildProviders } from './providers/index.js';
+import { loggerOptions } from './shared/http/logging.js';
 
 const log = pino(
   loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }),
 );
 
-// Who reacts to which outbox event. Empty until Phase 6 adds the first
-// consumer ('meal.changed' -> recompute the daily summary).
+// Who reacts to which outbox event. Empty until the first consumer arrives
+// ('meal.changed' -> recompute the daily summary).
 const consumers: OutboxConsumers = {};
 
 const runner = createPgBoss({
@@ -36,10 +32,6 @@ const runner = createPgBoss({
     idempotencyStore: createIdempotencyStore(db),
     rateLimitStore: createRateLimitStore(db),
     outboxStore: createOutboxStore(db),
-    magicLinkStore: createMagicLinkStore(db),
-    guestSessionStore: createGuestSessionStore(db),
-    onboardingStore: createOnboardingStore(db),
-    planGenerationStore: createPlanGenerationStore(db),
     consumers,
     providers: buildProviders(config),
   }),

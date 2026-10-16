@@ -1,27 +1,20 @@
-// The dependencies buildApp() needs, with fakes that need no database: a
-// database check that always succeeds, in-memory idempotency and rate limit
-// stores, and a job queue that records jobs without running them. Every HTTP
-// test starts from this and overrides what it needs:
+// The dependencies buildApp() needs for a test: a database check that always
+// succeeds, in-memory idempotency and rate limit stores, a job queue that
+// records jobs without running them, and the fake providers. A test starts
+// from this and overrides what it needs:
 //
 //   const app = buildApp(fakeDeps());
 //   const app = buildApp(fakeDeps({ checkDatabase: () => Promise.reject(new Error('down')) }));
+//
+// Routes that touch the database go to the test database (src/db/index.ts
+// picks TEST_DATABASE_URL under vitest), so such tests also need test/db.ts.
 
 import type { AppDependencies } from '../src/app.js';
-import { ephemeralAccessTokenService } from '../src/shared/auth/access-token.js';
-import { memoryAccountStore } from '../src/db/account-store.js';
-import { memoryAuditStore } from '../src/db/audit-store.js';
-import { memoryDeviceStore } from '../src/db/device-store.js';
-import { memoryEmailSuppressionStore } from '../src/db/email-suppression-store.js';
-import { memoryGuestSessionStore } from '../src/db/guest-session-store.js';
-import { memoryMagicLinkStore } from '../src/db/magic-link-store.js';
-import { memoryOnboardingStore } from '../src/db/onboarding-store.js';
-import { memoryPlanGenerationStore } from '../src/db/plan-generation-store.js';
-import { memorySessionStore } from '../src/db/session-store.js';
-import { memoryIdempotencyStore } from '../src/shared/http/idempotency.js';
-import { memoryRateLimitStore } from '../src/shared/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
 import { memoryJobQueue } from '../src/jobs/queue.js';
 import { fakeProviders } from '../src/providers/index.js';
+import { memoryIdempotencyStore } from '../src/shared/http/idempotency.js';
+import { memoryRateLimitStore } from '../src/shared/http/rate-limit.js';
 
 export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependencies {
   return {
@@ -30,21 +23,6 @@ export function fakeDeps(overrides: Partial<AppDependencies> = {}): AppDependenc
     rateLimitStore: memoryRateLimitStore(),
     jobs: memoryJobQueue<JobPayloads>(),
     providers: fakeProviders(),
-    accessTokens: ephemeralAccessTokenService(),
-    guestSessions: memoryGuestSessionStore(),
-    devices: memoryDeviceStore(),
-    accounts: memoryAccountStore(),
-    sessions: memorySessionStore(),
-    audit: memoryAuditStore(),
-    magicLinks: memoryMagicLinkStore(),
-    onboarding: memoryOnboardingStore(),
-    planGenerations: memoryPlanGenerationStore(),
-    magicLinkBaseUrl: 'https://app.test/auth/magic-link',
-    // Not configured by default; the social sign-in tests build verifiers
-    // over a local key pair and pass them in.
-    identityTokens: {},
-    emailSuppressions: memoryEmailSuppressionStore(),
-    resendWebhookSecret: undefined,
     appLinks: {
       appleTeamId: undefined,
       iosBundleId: undefined,

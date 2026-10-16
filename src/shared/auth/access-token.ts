@@ -20,6 +20,7 @@ import {
   jwtVerify,
   SignJWT,
 } from 'jose';
+import { config } from '../../config/index.js';
 import { AppError } from '../http/errors.js';
 import type { AccessTokenKey } from './keys.js';
 
@@ -177,3 +178,11 @@ export function ephemeralAccessTokenService(options: AccessTokenOptions = {}): A
     options,
   );
 }
+
+// The service the app uses. Built from ACCESS_TOKEN_KEYS, or on a key made
+// now when that is unset; config refuses the unset case in production.
+export const usingEphemeralAccessTokenKey = config.ACCESS_TOKEN_KEYS === undefined;
+export const accessTokens: AccessTokenService =
+  config.ACCESS_TOKEN_KEYS === undefined
+    ? ephemeralAccessTokenService()
+    : createAccessTokenService(config.ACCESS_TOKEN_KEYS);

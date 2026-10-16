@@ -2,7 +2,7 @@ import { getTableColumns, getTableName } from 'drizzle-orm';
 import { CasingCache } from 'drizzle-orm/casing';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import * as schema from './index.js';
+import * as schema from '../schema.js';
 import { auditLog, idempotencyKeys, outbox } from './infrastructure.js';
 
 // Column names are converted to snake_case at query and migration time, not on

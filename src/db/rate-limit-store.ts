@@ -8,7 +8,7 @@
 import { lt, sql } from 'drizzle-orm';
 import type { RateLimitStore } from '../shared/http/rate-limit.js';
 import type { Database } from './idempotency-store.js';
-import { rateLimitCounters } from './schema/index.js';
+import { rateLimitCounters } from './schema.js';
 
 export function createRateLimitStore(db: Database): RateLimitStore {
   return {

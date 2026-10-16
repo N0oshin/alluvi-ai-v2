@@ -2,10 +2,10 @@
 //
 // Every request may carry `Authorization: Bearer <token>`. The token is one
 // of two kinds, told apart by its prefix:
-//   - an access token (a JWT): checked by signature,
-//     no database. The caller is a `user`.
-//   - a guest token (`gst_...`): looked up in
-//     guest_sessions. The caller is a `guest` doing onboarding.
+//   - an access token (a JWT): checked by signature, no database. The caller
+//     is a `user`.
+//   - a guest token (`gst_...`): looked up in guest_sessions by the identity
+//     module. The caller is a `guest` doing onboarding.
 // No header means `anonymous`.
 //
 // The result is the request's *principal*, which later code reads instead of
@@ -15,7 +15,6 @@
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AccessTokenService } from '../auth/access-token.js';
-import type { GuestSessionStore } from '../../db/guest-session-store.js';
 import { AppError } from './errors.js';
 
 export interface UserPrincipal {
@@ -49,13 +48,15 @@ declare module 'fastify' {
 
 export interface AuthOptions {
   accessTokens: AccessTokenService;
-  guestSessions: GuestSessionStore;
-  now?: () => Date;
+  // The live, unclaimed guest session behind a token; throws unauthenticated
+  // otherwise. app.ts passes the identity module's query, so this shared file
+  // does not depend on a module.
+  resolveGuest: (token: string, now: Date) => Promise<{ id: string; deviceId: string }>;
 }
 
 const GUEST_PREFIX = 'gst_';
 
-// This pulls the token out of an Authorization header
+// Pulls the token out of an Authorization header.
 export function readBearerToken(header: string | undefined): string | undefined {
   if (header === undefined) return undefined;
   const [scheme, token, ...rest] = header.trim().split(/\s+/);
@@ -79,8 +80,7 @@ function satisfies(requirement: AuthRequirement, principal: Principal): boolean 
 }
 
 export function addAuthentication(app: FastifyInstance, options: AuthOptions): void {
-  const { accessTokens, guestSessions } = options;
-  const now = options.now ?? (() => new Date());
+  const { accessTokens, resolveGuest } = options;
 
   // Registers the field with no starting value. The hook below assigns it on
   // every request before any handler runs, so handlers never see it unset.
@@ -95,7 +95,7 @@ export function addAuthentication(app: FastifyInstance, options: AuthOptions): v
     let principal: Principal = { kind: 'anonymous' };
     if (token !== undefined) {
       if (token.startsWith(GUEST_PREFIX)) {
-        const guest = await guestSessions.resolve(token, now());
+        const guest = await resolveGuest(token, new Date());
         principal = { kind: 'guest', guestSessionId: guest.id, deviceId: guest.deviceId };
       } else {
         const claims = await accessTokens.verify(token);

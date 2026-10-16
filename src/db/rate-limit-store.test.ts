@@ -8,7 +8,7 @@ import {
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
 import { createRateLimitStore } from './rate-limit-store.js';
-import { rateLimitCounters } from './schema/index.js';
+import { rateLimitCounters } from './schema.js';
 
 describeWithDatabase('createRateLimitStore', () => {
   beforeAll(migrateTestDatabase);

@@ -13,8 +13,8 @@ import {
   type IdempotencyRecord,
   type IdempotencyStore,
 } from '../shared/http/idempotency.js';
-import { idempotencyKeys } from './schema/index.js';
-import type * as schema from './schema/index.js';
+import { idempotencyKeys } from './schema.js';
+import type * as schema from './schema.js';
 
 export type Database = NodePgDatabase<typeof schema>;
 

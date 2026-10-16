@@ -8,7 +8,7 @@ import {
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
 import { addOutboxEvent, createOutboxStore } from './outbox.js';
-import { outbox } from './schema/index.js';
+import { outbox } from './schema.js';
 
 describeWithDatabase('outbox store', () => {
   beforeAll(migrateTestDatabase);

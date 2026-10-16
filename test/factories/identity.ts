@@ -10,7 +10,7 @@ import {
   sessions,
   userConsents,
   users,
-} from '../../src/db/schema/index.js';
+} from '../../src/db/schema.js';
 import { defineFactory, nextSequence } from './define.js';
 
 // An active user who has finished onboarding: the row almost every other

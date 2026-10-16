@@ -1,32 +1,18 @@
-// Process entry point: builds the app and starts listening.
+// API process entry point: builds the app and starts listening.
 
 // Importing config validates the environment first. If a variable is missing
 // or invalid, this import throws and the process exits before anything starts.
 import pino from 'pino';
 import { config } from './config/index.js';
 import { buildApp } from './app.js';
-import {
-  createAccessTokenService,
-  ephemeralAccessTokenService,
-  type AccessTokenService,
-} from './shared/auth/access-token.js';
-import { APPLE, createIdentityTokenVerifier, GOOGLE } from './shared/auth/identity-token.js';
-import { createAccountStore } from './db/account-store.js';
-import { createAuditStore } from './db/audit-store.js';
-import { createDeviceStore } from './db/device-store.js';
-import { createEmailSuppressionStore } from './db/email-suppression-store.js';
-import { createGuestSessionStore } from './db/guest-session-store.js';
-import { createOnboardingStore } from './db/onboarding-store.js';
-import { createPlanGenerationStore } from './db/plan-generation-store.js';
 import { createIdempotencyStore } from './db/idempotency-store.js';
 import { checkDatabase, db, pool } from './db/index.js';
-import { createMagicLinkStore } from './db/magic-link-store.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
-import { createSessionStore } from './db/session-store.js';
-import { loggerOptions } from './shared/http/logging.js';
 import { jobs } from './jobs/definitions.js';
 import { createPgBoss } from './jobs/runner.js';
 import { buildProviders } from './providers/index.js';
+import { usingEphemeralAccessTokenKey } from './shared/auth/access-token.js';
+import { loggerOptions } from './shared/http/logging.js';
 
 const logger = loggerOptions({
   level: config.LOG_LEVEL,
@@ -36,8 +22,20 @@ const logger = loggerOptions({
 // A Pino logger for the pieces that start before the app exists.
 const log = pino(logger);
 
+if (usingEphemeralAccessTokenKey) {
+  log.warn(
+    'ACCESS_TOKEN_KEYS is not set; using a key generated at start-up, so every access token expires at restart',
+  );
+}
+
+const providers = buildProviders(config);
+if (providers.identityTokens.apple === undefined)
+  log.warn('APPLE_CLIENT_IDS is not set; POST /v1/auth/apple answers 503');
+if (providers.identityTokens.google === undefined)
+  log.warn('GOOGLE_CLIENT_IDS is not set; POST /v1/auth/google answers 503');
+
 // The job queue, in enqueue-only mode: no handlers, so this process never
-// runs a job. The worker process (src/workers/index.ts) does that.
+// runs a job. The worker process (src/worker.ts) does that.
 const queue = createPgBoss({
   connectionString: config.DATABASE_URL,
   jobs,
@@ -46,55 +44,19 @@ const queue = createPgBoss({
 });
 await queue.start();
 
-// Access token keys come from the environment. Outside production the server
-// may run without them, on a key made now and forgotten at exit.
-let accessTokens: AccessTokenService;
-if (config.ACCESS_TOKEN_KEYS !== undefined) {
-  accessTokens = createAccessTokenService(config.ACCESS_TOKEN_KEYS);
-} else {
-  log.warn(
-    'ACCESS_TOKEN_KEYS is not set; using a key generated at start-up, so every access token expires at restart',
-  );
-  accessTokens = ephemeralAccessTokenService();
-}
-
-// Apple and Google sign-in work only with their client ids configured.
-const identityTokens = {
-  apple: config.APPLE_CLIENT_IDS && createIdentityTokenVerifier(APPLE, config.APPLE_CLIENT_IDS),
-  google: config.GOOGLE_CLIENT_IDS && createIdentityTokenVerifier(GOOGLE, config.GOOGLE_CLIENT_IDS),
-};
-if (identityTokens.apple === undefined)
-  log.warn('APPLE_CLIENT_IDS is not set; POST /v1/auth/apple answers 503');
-if (identityTokens.google === undefined)
-  log.warn('GOOGLE_CLIENT_IDS is not set; POST /v1/auth/google answers 503');
-
 const app = buildApp(
   {
     checkDatabase,
     idempotencyStore: createIdempotencyStore(db),
     rateLimitStore: createRateLimitStore(db),
     jobs: queue.queue,
-    providers: buildProviders(config),
-    accessTokens,
-    guestSessions: createGuestSessionStore(db),
-    devices: createDeviceStore(db),
-    accounts: createAccountStore(db),
-    sessions: createSessionStore(db),
-    audit: createAuditStore(db),
-    onboarding: createOnboardingStore(db),
-    planGenerations: createPlanGenerationStore(db),
-    magicLinks: createMagicLinkStore(db),
-    magicLinkBaseUrl: config.MAGIC_LINK_BASE_URL,
-    identityTokens,
-    emailSuppressions: createEmailSuppressionStore(db),
-    resendWebhookSecret: config.RESEND_WEBHOOK_SECRET,
+    providers,
     appLinks: {
       appleTeamId: config.APPLE_TEAM_ID,
       iosBundleId: config.IOS_BUNDLE_ID ?? config.APPLE_CLIENT_IDS?.[0],
       androidPackageName: config.ANDROID_PACKAGE_NAME,
       androidCertSha256: config.ANDROID_CERT_SHA256,
-      // Group invite links (document 02 section 12.9). Magic links are not
-      // app links any more (decision 51).
+      // Group invite links (document 02 section 12.9).
       linkPath: '/groups/',
     },
   },

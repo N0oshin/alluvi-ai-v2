@@ -15,7 +15,7 @@
 
 import { asc, eq, isNull, sql, type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
 import type { Database } from './idempotency-store.js';
-import { outbox } from './schema/index.js';
+import { outbox } from './schema.js';
 
 export type OutboxEvent = InferSelectModel<typeof outbox>;
 

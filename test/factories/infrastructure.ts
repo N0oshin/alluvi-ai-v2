@@ -8,7 +8,7 @@ import {
   idempotencyKeys,
   outbox,
   rateLimitCounters,
-} from '../../src/db/schema/index.js';
+} from '../../src/db/schema.js';
 import { defineFactory, nextSequence } from './define.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;

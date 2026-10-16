@@ -9,7 +9,7 @@ import type {
   sexEnum,
   weightGoalDirectionEnum,
   workoutFrequencyEnum,
-} from '../../db/schema/index.js';
+} from '../../db/schema.js';
 
 type Sex = EnumValue<typeof sexEnum>;
 type Goal = EnumValue<typeof weightGoalDirectionEnum>;

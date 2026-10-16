@@ -14,6 +14,7 @@
 //After successful verification, your function returns  a verified identity
 
 import { createHash } from 'node:crypto';
+import type { Config } from '../../config/index.js';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose';
 import { AppError } from '../http/errors.js';
 
@@ -116,5 +117,22 @@ export function createIdentityTokenVerifier(
         familyName: stringOrNull(payload['family_name']),
       };
     },
+  };
+}
+
+// One verifier per social provider. Each exists only when its client ids are
+// configured; the sign-in route for a missing one answers 503.
+export interface IdentityTokenVerifiers {
+  apple?: IdentityTokenVerifier | undefined;
+  google?: IdentityTokenVerifier | undefined;
+}
+
+export function buildIdentityTokenVerifiers(
+  config: Pick<Config, 'APPLE_CLIENT_IDS' | 'GOOGLE_CLIENT_IDS'>,
+): IdentityTokenVerifiers {
+  return {
+    apple: config.APPLE_CLIENT_IDS && createIdentityTokenVerifier(APPLE, config.APPLE_CLIENT_IDS),
+    google:
+      config.GOOGLE_CLIENT_IDS && createIdentityTokenVerifier(GOOGLE, config.GOOGLE_CLIENT_IDS),
   };
 }

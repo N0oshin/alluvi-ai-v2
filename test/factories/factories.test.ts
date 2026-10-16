@@ -1,6 +1,6 @@
 import { count } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { auditLog, idempotencyKeys, outbox } from '../../src/db/schema/index.js';
+import { auditLog, idempotencyKeys, outbox } from '../../src/db/schema.js';
 import {
   allTables,
   closeTestDatabase,

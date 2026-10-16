@@ -1,26 +1,26 @@
-// The sign-in rules shared by Apple, Google and the email magic link
-// . Each of those routes proves *who* is calling
-// (a verified identity token, a consumed magic link) and then hands the
-// result here. This file decides what happens next:
+// The sign-in rules shared by Apple, Google and the email magic link. Each
+// route proves *who* is calling (a verified identity token, a consumed magic
+// link) and hands the result here. This file decides what happens next:
 //
 //   1. The identity is already linked to an account: sign that user in.
 //   2. It is not, but the verified email belongs to an account: refuse with
 //      409 and name the method that account uses.
 //   3. Otherwise create the account, which needs the terms consent.
 //
-// this file takes a verified identity, finds or creates the app account according to your rules, opens a session, and returns your app’s tokens plus the next screen to show.
+// No HTTP here: the routes turn the result into a response.
 
-import {
-  ACCESS_TOKEN_LIFETIME_SECONDS,
-  type AccessTokenService,
-} from '../../shared/auth/access-token.js';
-import type {
-  AccountStore,
-  AuthProvider,
-  ConsentDecision,
-  UserRecord,
-} from '../../db/account-store.js';
+import { ACCESS_TOKEN_LIFETIME_SECONDS, accessTokens } from '../../shared/auth/access-token.js';
 import { AppError } from '../../shared/http/errors.js';
+import {
+  type AuthProvider,
+  type ConsentDecision,
+  createAccount,
+  findUserByEmail,
+  findUserByIdentity,
+  openSession,
+  providersOf,
+  type UserRecord,
+} from './queries.js';
 
 export interface SignInInput {
   provider: AuthProvider;
@@ -57,16 +57,6 @@ export interface SignInResult {
   body: SignInBody;
 }
 
-export interface SignInService {
-  signIn(input: SignInInput): Promise<SignInResult>;
-}
-
-export interface SignInServiceOptions {
-  accounts: AccountStore;
-  accessTokens: AccessTokenService;
-  now?: () => Date;
-}
-
 export function nextStepFor(user: UserRecord, isNewUser: boolean): NextStep {
   if (user.status === 'pending_deletion') return 'restore_account';
   if (isNewUser) return 'confirm_name';
@@ -87,93 +77,6 @@ function hasTermsConsent(consents: ConsentDecision[]): boolean {
   return consents.some((c) => c.type === 'terms_and_privacy' && c.granted);
 }
 
-export function createSignInService(options: SignInServiceOptions): SignInService {
-  const { accounts, accessTokens } = options;
-  const now = options.now ?? (() => new Date());
-
-  async function respond(
-    user: UserRecord,
-    refreshToken: string,
-    sessionId: string,
-    isNewUser: boolean,
-  ): Promise<SignInResult> {
-    const accessToken = await accessTokens.issue({ userId: user.id, sessionId });
-    return {
-      status: isNewUser ? 201 : 200,
-      body: {
-        access_token: accessToken,
-        access_expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
-        refresh_token: refreshToken,
-        user: { id: user.id, first_name: user.firstName, username: user.username },
-        is_new_user: isNewUser,
-        next_step: nextStepFor(user, isNewUser),
-      },
-    };
-  }
-
-  return {
-    async signIn(input) {
-      const at = now();
-      const identity = { provider: input.provider, subject: input.subject };
-
-      // 1. A known identity.
-      const existing = await accounts.findUserByIdentity(identity.provider, identity.subject);
-      if (existing !== undefined) {
-        if (existing.status === 'suspended') throw new AppError('account_suspended');
-        // A purged account's identity should be gone; if one lingers, it
-        // cannot sign in.
-        if (existing.status === 'deleted') throw new AppError('unauthenticated');
-
-        const issued = await accounts.openSession(
-          existing.id,
-          identity,
-          input.deviceId,
-          input.guestSessionId,
-          at,
-        );
-        return respond(existing, issued.refreshToken, issued.session.id, false);
-      }
-
-      // 2. The email is taken by an account that signs in another way.
-      if (input.email !== null) {
-        const owner = await accounts.findUserByEmail(input.email);
-        if (owner !== undefined) {
-          const providers = await accounts.providersOf(owner.id);
-          throw new AppError(
-            'email_linked_to_other_provider',
-            providers.map((provider) => ({
-              field: 'email',
-              code: `use_${provider}`,
-              message: `Sign in with ${describe(provider)} instead.`,
-            })),
-          );
-        }
-      }
-
-      // 3. A new account.
-      if (!hasTermsConsent(input.consents)) throw new AppError('consent_required');
-
-      const created = await accounts.createAccount(
-        {
-          user: {
-            email: input.email,
-            firstName: initialFirstName(input.givenName, input.email),
-            lastName: input.familyName?.trim().slice(0, 50) || null,
-            timeZone: input.timeZone,
-          },
-          identity: { ...identity, emailAtProvider: input.email },
-          consents: input.consents,
-          deviceId: input.deviceId,
-          guestSessionId: input.guestSessionId,
-          ip: input.ip,
-        },
-        at,
-      );
-      return respond(created.user, created.session.refreshToken, created.session.session.id, true);
-    },
-  };
-}
-
 function describe(provider: AuthProvider): string {
   switch (provider) {
     case 'apple':
@@ -183,4 +86,83 @@ function describe(provider: AuthProvider): string {
     case 'email':
       return 'your email';
   }
+}
+
+async function respond(
+  user: UserRecord,
+  refreshToken: string,
+  sessionId: string,
+  isNewUser: boolean,
+): Promise<SignInResult> {
+  const accessToken = await accessTokens.issue({ userId: user.id, sessionId });
+  return {
+    status: isNewUser ? 201 : 200,
+    body: {
+      access_token: accessToken,
+      access_expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
+      refresh_token: refreshToken,
+      user: { id: user.id, first_name: user.firstName, username: user.username },
+      is_new_user: isNewUser,
+      next_step: nextStepFor(user, isNewUser),
+    },
+  };
+}
+
+export async function signIn(input: SignInInput, now: Date = new Date()): Promise<SignInResult> {
+  const identity = { provider: input.provider, subject: input.subject };
+
+  // 1. A known identity.
+  const existing = await findUserByIdentity(identity.provider, identity.subject);
+  if (existing !== undefined) {
+    if (existing.status === 'suspended') throw new AppError('account_suspended');
+    // A purged account's identity should be gone; if one lingers, it cannot
+    // sign in.
+    if (existing.status === 'deleted') throw new AppError('unauthenticated');
+
+    const issued = await openSession(
+      existing.id,
+      identity,
+      input.deviceId,
+      input.guestSessionId,
+      now,
+    );
+    return respond(existing, issued.refreshToken, issued.session.id, false);
+  }
+
+  // 2. The email is taken by an account that signs in another way.
+  if (input.email !== null) {
+    const owner = await findUserByEmail(input.email);
+    if (owner !== undefined) {
+      const providers = await providersOf(owner.id);
+      throw new AppError(
+        'email_linked_to_other_provider',
+        providers.map((provider) => ({
+          field: 'email',
+          code: `use_${provider}`,
+          message: `Sign in with ${describe(provider)} instead.`,
+        })),
+      );
+    }
+  }
+
+  // 3. A new account.
+  if (!hasTermsConsent(input.consents)) throw new AppError('consent_required');
+
+  const created = await createAccount(
+    {
+      user: {
+        email: input.email,
+        firstName: initialFirstName(input.givenName, input.email),
+        lastName: input.familyName?.trim().slice(0, 50) || null,
+        timeZone: input.timeZone,
+      },
+      identity: { ...identity, emailAtProvider: input.email },
+      consents: input.consents,
+      deviceId: input.deviceId,
+      guestSessionId: input.guestSessionId,
+      ip: input.ip,
+    },
+    now,
+  );
+  return respond(created.user, created.session.refreshToken, created.session.session.id, true);
 }

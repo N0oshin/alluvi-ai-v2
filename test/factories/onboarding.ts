@@ -1,7 +1,7 @@
 // Factories for the onboarding tables (src/db/schema/onboarding.ts).
 
 import { v7 as uuidv7 } from 'uuid';
-import { onboardingResponses, planGenerations } from '../../src/db/schema/index.js';
+import { onboardingResponses, planGenerations } from '../../src/db/schema.js';
 import { defineFactory } from './define.js';
 
 // A fully answered questionnaire belonging to a guest session (the answers

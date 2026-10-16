@@ -24,7 +24,7 @@ import {
   weightGoalDirectionEnum,
   workoutFrequencyEnum,
 } from '../../shared/schema.js';
-import { guestSessions, users } from './identity.js';
+import { guestSessions, users } from '../identity/schema.js';
 import { baseColumns } from '../../shared/schema.js';
 
 const instant = () => timestamp({ withTimezone: true });
