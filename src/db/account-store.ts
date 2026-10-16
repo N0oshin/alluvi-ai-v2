@@ -12,7 +12,7 @@ import { eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { createGuestSessionStore } from './guest-session-store.js';
 import type { Executor } from './idempotency-store.js';
-import type { EnumValue } from './schema/enums.js';
+import type { EnumValue } from '../shared/schema.js';
 import {
   authIdentities,
   type authProviderEnum,

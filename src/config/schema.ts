@@ -5,8 +5,8 @@
 // built in ./index.ts.
 
 import { z } from 'zod';
-import { parseAccessTokenKeys } from '../auth/keys.js';
-import { LOG_LEVELS } from '../http/logging.js';
+import { parseAccessTokenKeys } from '../shared/auth/keys.js';
+import { LOG_LEVELS } from '../shared/http/logging.js';
 
 // The allowed names for each external service provider (src/providers/).
 // 'fake' needs no key and is the default outside production, so a fresh

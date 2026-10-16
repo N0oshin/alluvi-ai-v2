@@ -8,7 +8,7 @@ import {
   truncateAll,
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
-import { AppError } from '../http/errors.js';
+import { AppError } from '../shared/http/errors.js';
 import { createAccountStore, type NewAccount } from './account-store.js';
 import { createGuestSessionStore } from './guest-session-store.js';
 import {

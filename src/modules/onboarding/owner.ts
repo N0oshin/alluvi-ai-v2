@@ -3,7 +3,7 @@
 
 import type { FastifyRequest } from 'fastify';
 import type { OnboardingOwner } from '../../db/onboarding-store.js';
-import { AppError } from '../../http/errors.js';
+import { AppError } from '../../shared/http/errors.js';
 
 // The authentication hook has already refused anonymous callers on these
 // routes; the throw is the same kind of safety net as requireUser in

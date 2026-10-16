@@ -14,21 +14,21 @@
 
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import type { AccessTokenService } from '../../auth/access-token.js';
+import type { AccessTokenService } from '../../shared/auth/access-token.js';
 import {
   MAGIC_LINK_LIFETIME_MS,
   MAGIC_LINK_RESEND_COOLDOWN_SECONDS,
-} from '../../auth/magic-link-token.js';
+} from '../../shared/auth/magic-link-token.js';
 import type { AccountStore } from '../../db/account-store.js';
 import type { AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { EmailSuppressionStore } from '../../db/email-suppression-store.js';
 import type { MagicLink, MagicLinkStore } from '../../db/magic-link-store.js';
 import { magicIntentEnum } from '../../db/schema/index.js';
-import { AppError } from '../../http/errors.js';
-import { byIp, HOUR, MINUTE, SECOND } from '../../http/rate-limit.js';
-import { readTimeZone } from '../../http/time-zone.js';
-import { validate } from '../../http/validate.js';
+import { AppError } from '../../shared/http/errors.js';
+import { byIp, HOUR, MINUTE, SECOND } from '../../shared/http/rate-limit.js';
+import { readTimeZone } from '../../shared/http/time-zone.js';
+import { validate } from '../../shared/http/validate.js';
 import type { EmailProvider } from '../../providers/email/index.js';
 import { magicLinkEmail } from './magic-link-email.js';
 import { magicLinkPage, type MagicLinkPageState } from './magic-link-page.js';

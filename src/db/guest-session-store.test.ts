@@ -8,8 +8,8 @@ import {
   truncateAll,
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
-import { GUEST_TOKEN_LIFETIME_MS, hashGuestToken } from '../auth/guest-token.js';
-import { AppError } from '../http/errors.js';
+import { GUEST_TOKEN_LIFETIME_MS, hashGuestToken } from '../shared/auth/guest-token.js';
+import { AppError } from '../shared/http/errors.js';
 import { createGuestSessionStore } from './guest-session-store.js';
 import { guestSessions } from './schema/index.js';
 

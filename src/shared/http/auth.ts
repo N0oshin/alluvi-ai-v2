@@ -15,7 +15,7 @@
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AccessTokenService } from '../auth/access-token.js';
-import type { GuestSessionStore } from '../db/guest-session-store.js';
+import type { GuestSessionStore } from '../../db/guest-session-store.js';
 import { AppError } from './errors.js';
 
 export interface UserPrincipal {

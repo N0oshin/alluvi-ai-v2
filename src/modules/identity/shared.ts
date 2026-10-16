@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { ConsentDecision } from '../../db/account-store.js';
 import type { Device, DeviceStore } from '../../db/device-store.js';
 import { consentTypeEnum } from '../../db/schema/index.js';
-import { AppError } from '../../http/errors.js';
+import { AppError } from '../../shared/http/errors.js';
 
 export const installIdField = z.string().min(8).max(128);
 

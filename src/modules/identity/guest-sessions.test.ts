@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
 import { buildApp } from '../../app.js';
-import { GUEST_TOKEN_LIFETIME_MS } from '../../auth/guest-token.js';
-import type { ErrorDetail } from '../../http/errors.js';
+import { GUEST_TOKEN_LIFETIME_MS } from '../../shared/auth/guest-token.js';
+import type { ErrorDetail } from '../../shared/http/errors.js';
 
 interface ErrorBody {
   error: { code: string; details: ErrorDetail[] };

@@ -12,7 +12,7 @@ import {
   IDEMPOTENCY_TTL_MS,
   type IdempotencyRecord,
   type IdempotencyStore,
-} from '../http/idempotency.js';
+} from '../shared/http/idempotency.js';
 import { idempotencyKeys } from './schema/index.js';
 import type * as schema from './schema/index.js';
 

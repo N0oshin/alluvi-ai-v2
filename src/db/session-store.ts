@@ -10,8 +10,8 @@ import {
   generateRefreshToken,
   hashRefreshToken,
   REFRESH_TOKEN_LIFETIME_MS,
-} from '../auth/refresh-token.js';
-import { AppError } from '../http/errors.js';
+} from '../shared/auth/refresh-token.js';
+import { AppError } from '../shared/http/errors.js';
 import type { Executor } from './idempotency-store.js';
 import { sessions } from './schema/index.js';
 

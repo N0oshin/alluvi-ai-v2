@@ -6,7 +6,7 @@
 
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import type { EnumValue } from './schema/enums.js';
+import type { EnumValue } from '../shared/schema.js';
 import type { Executor } from './idempotency-store.js';
 import { devices, type platformEnum } from './schema/index.js';
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
 import { buildApp } from '../../app.js';
-import type { ErrorDetail } from '../../http/errors.js';
+import type { ErrorDetail } from '../../shared/http/errors.js';
 
 interface ErrorBody {
   error: { code: string; details: ErrorDetail[] };

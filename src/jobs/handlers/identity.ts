@@ -10,7 +10,7 @@
 
 import type { GuestSessionStore } from '../../db/guest-session-store.js';
 import type { MagicLinkStore } from '../../db/magic-link-store.js';
-import { DAY } from '../../http/rate-limit.js';
+import { DAY } from '../../shared/http/rate-limit.js';
 import type { JobPayloads } from '../definitions.js';
 import type { JobHandler } from '../queue.js';
 

@@ -9,8 +9,8 @@ import {
   createAccessTokenService,
   ephemeralAccessTokenService,
   type AccessTokenService,
-} from './auth/access-token.js';
-import { APPLE, createIdentityTokenVerifier, GOOGLE } from './auth/identity-token.js';
+} from './shared/auth/access-token.js';
+import { APPLE, createIdentityTokenVerifier, GOOGLE } from './shared/auth/identity-token.js';
 import { createAccountStore } from './db/account-store.js';
 import { createAuditStore } from './db/audit-store.js';
 import { createDeviceStore } from './db/device-store.js';
@@ -23,7 +23,7 @@ import { checkDatabase, db, pool } from './db/index.js';
 import { createMagicLinkStore } from './db/magic-link-store.js';
 import { createRateLimitStore } from './db/rate-limit-store.js';
 import { createSessionStore } from './db/session-store.js';
-import { loggerOptions } from './http/logging.js';
+import { loggerOptions } from './shared/http/logging.js';
 import { jobs } from './jobs/definitions.js';
 import { createPgBoss } from './jobs/runner.js';
 import { buildProviders } from './providers/index.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fakeDeps } from '../../test/app-deps.js';
-import { buildApp } from '../app.js';
+import { fakeDeps } from '../../../test/app-deps.js';
+import { buildApp } from '../../app.js';
 import type { AppLinkConfig } from './well-known.js';
 
 const configured: AppLinkConfig = {

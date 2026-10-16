@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ephemeralAccessTokenService } from '../../auth/access-token.js';
+import { ephemeralAccessTokenService } from '../../shared/auth/access-token.js';
 import { memoryAccountStore } from '../../db/account-store.js';
-import { AppError } from '../../http/errors.js';
+import { AppError } from '../../shared/http/errors.js';
 import { createSignInService, initialFirstName, nextStepFor, type SignInInput } from './sign-in.js';
 
 const terms = { type: 'terms_and_privacy' as const, documentVersion: '2026-09', granted: true };

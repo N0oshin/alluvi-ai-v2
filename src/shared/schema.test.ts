@@ -1,7 +1,7 @@
 import { getTableColumns } from 'drizzle-orm';
 import { pgTable, text } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { baseColumns, softDelete } from './shared.js';
+import { baseColumns, softDelete } from './schema.js';
 
 // A throwaway table that uses every helper, built the way real tables will be.
 const sample = pgTable('sample', {

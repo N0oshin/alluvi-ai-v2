@@ -7,8 +7,8 @@
 // The worker polls, finds it, and calls the handler for that name.
 // The handler deletes the expired rows.
 
-import type { IdempotencyStore } from '../../http/idempotency.js';
-import type { RateLimitStore } from '../../http/rate-limit.js';
+import type { IdempotencyStore } from '../../shared/http/idempotency.js';
+import type { RateLimitStore } from '../../shared/http/rate-limit.js';
 import type { JobPayloads } from '../definitions.js';
 import type { JobHandler } from '../queue.js';
 

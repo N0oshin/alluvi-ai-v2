@@ -8,8 +8,8 @@ import {
   truncateAll,
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
-import { hashRefreshToken, REFRESH_TOKEN_LIFETIME_MS } from '../auth/refresh-token.js';
-import { AppError } from '../http/errors.js';
+import { hashRefreshToken, REFRESH_TOKEN_LIFETIME_MS } from '../shared/auth/refresh-token.js';
+import { AppError } from '../shared/http/errors.js';
 import { sessions } from './schema/index.js';
 import { createSessionStore } from './session-store.js';
 

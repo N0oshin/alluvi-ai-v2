@@ -7,7 +7,7 @@
 //   const app = buildApp(fakeDeps({ checkDatabase: () => Promise.reject(new Error('down')) }));
 
 import type { AppDependencies } from '../src/app.js';
-import { ephemeralAccessTokenService } from '../src/auth/access-token.js';
+import { ephemeralAccessTokenService } from '../src/shared/auth/access-token.js';
 import { memoryAccountStore } from '../src/db/account-store.js';
 import { memoryAuditStore } from '../src/db/audit-store.js';
 import { memoryDeviceStore } from '../src/db/device-store.js';
@@ -17,8 +17,8 @@ import { memoryMagicLinkStore } from '../src/db/magic-link-store.js';
 import { memoryOnboardingStore } from '../src/db/onboarding-store.js';
 import { memoryPlanGenerationStore } from '../src/db/plan-generation-store.js';
 import { memorySessionStore } from '../src/db/session-store.js';
-import { memoryIdempotencyStore } from '../src/http/idempotency.js';
-import { memoryRateLimitStore } from '../src/http/rate-limit.js';
+import { memoryIdempotencyStore } from '../src/shared/http/idempotency.js';
+import { memoryRateLimitStore } from '../src/shared/http/rate-limit.js';
 import type { JobPayloads } from '../src/jobs/definitions.js';
 import { memoryJobQueue } from '../src/jobs/queue.js';
 import { fakeProviders } from '../src/providers/index.js';

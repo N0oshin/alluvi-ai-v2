@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { fakeDeps } from '../../test/app-deps.js';
-import { buildApp } from '../app.js';
+import { fakeDeps } from '../../../test/app-deps.js';
+import { buildApp } from '../../app.js';
 import { AppError, type ErrorDetail } from './errors.js';
 import {
   addIdempotency,

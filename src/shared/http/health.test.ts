@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../app.js';
-import { fakeDeps } from '../../test/app-deps.js';
+import { buildApp } from '../../app.js';
+import { fakeDeps } from '../../../test/app-deps.js';
 
 // Two fake database checks: one that succeeds and one that fails.
 const databaseUp = fakeDeps();

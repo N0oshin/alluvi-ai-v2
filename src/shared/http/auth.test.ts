@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { fakeDeps } from '../../test/app-deps.js';
-import { buildApp } from '../app.js';
+import { fakeDeps } from '../../../test/app-deps.js';
+import { buildApp } from '../../app.js';
 import { ephemeralAccessTokenService } from '../auth/access-token.js';
-import { memoryGuestSessionStore } from '../db/guest-session-store.js';
+import { memoryGuestSessionStore } from '../../db/guest-session-store.js';
 import { readBearerToken } from './auth.js';
 import type { ErrorDetail } from './errors.js';
 

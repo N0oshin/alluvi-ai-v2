@@ -12,8 +12,8 @@ import {
   generateGuestToken,
   GUEST_TOKEN_LIFETIME_MS,
   hashGuestToken,
-} from '../auth/guest-token.js';
-import { AppError } from '../http/errors.js';
+} from '../shared/auth/guest-token.js';
+import { AppError } from '../shared/http/errors.js';
 import type { Executor } from './idempotency-store.js';
 import { guestSessions } from './schema/index.js';
 

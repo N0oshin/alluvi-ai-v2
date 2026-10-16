@@ -8,7 +8,7 @@ import {
   truncateAll,
 } from '../../test/db.js';
 import { factories } from '../../test/factories/index.js';
-import { hashMagicLinkToken, MAGIC_LINK_LIFETIME_MS } from '../auth/magic-link-token.js';
+import { hashMagicLinkToken, MAGIC_LINK_LIFETIME_MS } from '../shared/auth/magic-link-token.js';
 import { createMagicLinkStore, type MagicLinkRequest } from './magic-link-store.js';
 import { magicLinkTokens } from './schema/index.js';
 

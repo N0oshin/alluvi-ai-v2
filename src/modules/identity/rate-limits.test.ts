@@ -6,7 +6,7 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
-import { HOUR, MINUTE, SECOND, type RateLimitRule } from '../../http/rate-limit.js';
+import { HOUR, MINUTE, SECOND, type RateLimitRule } from '../../shared/http/rate-limit.js';
 import { guestSessionRoutes } from './guest-sessions.js';
 import { magicLinkPageRoutes, magicLinkRoutes } from './magic-links.js';
 import { sessionRoutes } from './sessions.js';

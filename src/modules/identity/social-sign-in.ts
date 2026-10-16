@@ -19,15 +19,15 @@
 
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
-import type { AccessTokenService } from '../../auth/access-token.js';
-import type { IdentityTokenVerifier } from '../../auth/identity-token.js';
+import type { AccessTokenService } from '../../shared/auth/access-token.js';
+import type { IdentityTokenVerifier } from '../../shared/auth/identity-token.js';
 import type { AccountStore, AuthProvider } from '../../db/account-store.js';
 import type { AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
-import { AppError } from '../../http/errors.js';
-import { byIp, MINUTE } from '../../http/rate-limit.js';
-import { readTimeZone } from '../../http/time-zone.js';
-import { validate } from '../../http/validate.js';
+import { AppError } from '../../shared/http/errors.js';
+import { byIp, MINUTE } from '../../shared/http/rate-limit.js';
+import { readTimeZone } from '../../shared/http/time-zone.js';
+import { validate } from '../../shared/http/validate.js';
 import { withSignInAudit } from './audit.js';
 import { consentsField, installIdField, resolveDevice, toConsentDecisions } from './shared.js';
 import { createSignInService } from './sign-in.js';

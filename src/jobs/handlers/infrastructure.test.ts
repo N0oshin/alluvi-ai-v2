@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { memoryIdempotencyStore } from '../../http/idempotency.js';
-import { memoryRateLimitStore } from '../../http/rate-limit.js';
+import { memoryIdempotencyStore } from '../../shared/http/idempotency.js';
+import { memoryRateLimitStore } from '../../shared/http/rate-limit.js';
 import type { JobContext } from '../queue.js';
 import { infrastructureCleanup } from './infrastructure.js';
 

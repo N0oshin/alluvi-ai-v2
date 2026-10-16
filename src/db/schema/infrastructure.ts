@@ -25,7 +25,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { baseColumns, id } from './shared.js';
+import { baseColumns, id } from '../../shared/schema.js';
 
 const instant = () => timestamp({ withTimezone: true });
 

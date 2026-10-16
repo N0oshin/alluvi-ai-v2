@@ -19,8 +19,8 @@ import {
   weightGoalDirectionEnum,
   workoutFrequencyEnum,
 } from '../../db/schema/index.js';
-import { AppError } from '../../http/errors.js';
-import { validate } from '../../http/validate.js';
+import { AppError } from '../../shared/http/errors.js';
+import { validate } from '../../shared/http/validate.js';
 import { ownerOf } from './owner.js';
 import {
   birthDateProblem,

@@ -10,14 +10,17 @@
 //
 // this file takes a verified identity, finds or creates the app account according to your rules, opens a session, and returns your app’s tokens plus the next screen to show.
 
-import { ACCESS_TOKEN_LIFETIME_SECONDS, type AccessTokenService } from '../../auth/access-token.js';
+import {
+  ACCESS_TOKEN_LIFETIME_SECONDS,
+  type AccessTokenService,
+} from '../../shared/auth/access-token.js';
 import type {
   AccountStore,
   AuthProvider,
   ConsentDecision,
   UserRecord,
 } from '../../db/account-store.js';
-import { AppError } from '../../http/errors.js';
+import { AppError } from '../../shared/http/errors.js';
 
 export interface SignInInput {
   provider: AuthProvider;

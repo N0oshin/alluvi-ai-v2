@@ -17,7 +17,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { AuthProvider, ConsentDecision } from '../../db/account-store.js';
 import { AUDIT_ACTIONS, recordAudit, type AuditStore } from '../../db/audit-store.js';
-import { AppError, type ErrorCode } from '../../http/errors.js';
+import { AppError, type ErrorCode } from '../../shared/http/errors.js';
 import type { SignInResult } from './sign-in.js';
 
 // The refusals that count as a failed sign-in. Left out on purpose:

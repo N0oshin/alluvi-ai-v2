@@ -4,22 +4,22 @@
 // so a slow job never delays an HTTP response.
 
 import pino from 'pino';
-import { config } from '../config/index.js';
-import { createGuestSessionStore } from '../db/guest-session-store.js';
-import { createIdempotencyStore } from '../db/idempotency-store.js';
-import { db, pool } from '../db/index.js';
-import { createMagicLinkStore } from '../db/magic-link-store.js';
-import { createOnboardingStore } from '../db/onboarding-store.js';
-import { createPlanGenerationStore } from '../db/plan-generation-store.js';
-import { createOutboxStore } from '../db/outbox.js';
-import { createRateLimitStore } from '../db/rate-limit-store.js';
-import { loggerOptions } from '../http/logging.js';
-import { jobs } from '../jobs/definitions.js';
-import { buildHandlers } from '../jobs/handlers/index.js';
-import type { OutboxConsumers } from '../jobs/handlers/outbox.js';
-import { createPgBoss } from '../jobs/runner.js';
-import { schedules } from '../jobs/schedules.js';
-import { buildProviders } from '../providers/index.js';
+import { config } from './config/index.js';
+import { createGuestSessionStore } from './db/guest-session-store.js';
+import { createIdempotencyStore } from './db/idempotency-store.js';
+import { db, pool } from './db/index.js';
+import { createMagicLinkStore } from './db/magic-link-store.js';
+import { createOnboardingStore } from './db/onboarding-store.js';
+import { createPlanGenerationStore } from './db/plan-generation-store.js';
+import { createOutboxStore } from './db/outbox.js';
+import { createRateLimitStore } from './db/rate-limit-store.js';
+import { loggerOptions } from './shared/http/logging.js';
+import { jobs } from './jobs/definitions.js';
+import { buildHandlers } from './jobs/handlers/index.js';
+import type { OutboxConsumers } from './jobs/handlers/outbox.js';
+import { createPgBoss } from './jobs/runner.js';
+import { schedules } from './jobs/schedules.js';
+import { buildProviders } from './providers/index.js';
 
 const log = pino(
   loggerOptions({ level: config.LOG_LEVEL, pretty: config.NODE_ENV === 'development' }),

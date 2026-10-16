@@ -26,7 +26,7 @@
 // Only tables and enumerations are exported from here. Column helpers stay in
 // shared.ts and are imported by the schema files that use them.
 
-export * from './enums.js';
+export * from '../../shared/schema.js';
 export * from './infrastructure.js';
 export * from './identity.js';
 export * from './onboarding.js';

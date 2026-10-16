@@ -10,8 +10,8 @@ import { z } from 'zod';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { GuestSessionStore } from '../../db/guest-session-store.js';
 import { platformEnum } from '../../db/schema/index.js';
-import { byIp, HOUR } from '../../http/rate-limit.js';
-import { validate } from '../../http/validate.js';
+import { byIp, HOUR } from '../../shared/http/rate-limit.js';
+import { validate } from '../../shared/http/validate.js';
 
 export interface GuestSessionRouteDependencies {
   devices: DeviceStore;

@@ -19,8 +19,8 @@ import {
   permissionStateEnum,
   platformEnum,
   userStatusEnum,
-} from './enums.js';
-import { baseColumns, id } from './shared.js';
+} from '../../shared/schema.js';
+import { baseColumns, id } from '../../shared/schema.js';
 
 const instant = () => timestamp({ withTimezone: true });
 

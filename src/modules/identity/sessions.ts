@@ -12,14 +12,17 @@
 
 import type { FastifyPluginCallback } from 'fastify';
 import { z } from 'zod';
-import { ACCESS_TOKEN_LIFETIME_SECONDS, type AccessTokenService } from '../../auth/access-token.js';
+import {
+  ACCESS_TOKEN_LIFETIME_SECONDS,
+  type AccessTokenService,
+} from '../../shared/auth/access-token.js';
 import { AUDIT_ACTIONS, recordAudit, type AuditStore } from '../../db/audit-store.js';
 import type { DeviceStore } from '../../db/device-store.js';
 import type { IssuedSession, SessionStore } from '../../db/session-store.js';
-import { requireUser } from '../../http/auth.js';
-import { AppError } from '../../http/errors.js';
-import { byIp, MINUTE } from '../../http/rate-limit.js';
-import { validate } from '../../http/validate.js';
+import { requireUser } from '../../shared/http/auth.js';
+import { AppError } from '../../shared/http/errors.js';
+import { byIp, MINUTE } from '../../shared/http/rate-limit.js';
+import { validate } from '../../shared/http/validate.js';
 
 export interface SessionRouteDependencies {
   sessions: SessionStore;

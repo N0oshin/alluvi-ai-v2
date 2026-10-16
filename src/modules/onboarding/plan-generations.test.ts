@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
 import { buildApp } from '../../app.js';
 import type { OnboardingAnswers } from '../../db/onboarding-store.js';
-import type { ErrorDetail } from '../../http/errors.js';
+import type { ErrorDetail } from '../../shared/http/errors.js';
 import type { JobPayloads } from '../../jobs/definitions.js';
 import { memoryJobQueue } from '../../jobs/queue.js';
 

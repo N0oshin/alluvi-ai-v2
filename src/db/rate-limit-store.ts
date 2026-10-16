@@ -6,7 +6,7 @@
 // the same instant get 1 and 2, never both 1. See docs/backend-notes.md entry 30.
 
 import { lt, sql } from 'drizzle-orm';
-import type { RateLimitStore } from '../http/rate-limit.js';
+import type { RateLimitStore } from '../shared/http/rate-limit.js';
 import type { Database } from './idempotency-store.js';
 import { rateLimitCounters } from './schema/index.js';
 

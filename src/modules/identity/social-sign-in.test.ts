@@ -3,9 +3,9 @@ import { generateKeyPair, SignJWT } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { fakeDeps } from '../../../test/app-deps.js';
 import { buildApp } from '../../app.js';
-import { APPLE, createIdentityTokenVerifier, GOOGLE } from '../../auth/identity-token.js';
+import { APPLE, createIdentityTokenVerifier, GOOGLE } from '../../shared/auth/identity-token.js';
 import { memoryAccountStore } from '../../db/account-store.js';
-import type { ErrorDetail } from '../../http/errors.js';
+import type { ErrorDetail } from '../../shared/http/errors.js';
 import type { SignInBody } from './sign-in.js';
 
 interface ErrorBody {

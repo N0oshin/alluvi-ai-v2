@@ -17,10 +17,10 @@ import {
   generateMagicLinkToken,
   hashMagicLinkToken,
   MAGIC_LINK_LIFETIME_MS,
-} from '../auth/magic-link-token.js';
-import { AppError } from '../http/errors.js';
+} from '../shared/auth/magic-link-token.js';
+import { AppError } from '../shared/http/errors.js';
 import type { Executor } from './idempotency-store.js';
-import type { EnumValue } from './schema/enums.js';
+import type { EnumValue } from '../shared/schema.js';
 import { type magicIntentEnum, magicLinkTokens } from './schema/index.js';
 
 export type MagicIntent = EnumValue<typeof magicIntentEnum>;
