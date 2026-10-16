@@ -3,7 +3,7 @@
 // edit is not one.
 
 import { db } from '../../db/index.js';
-import { auditLog } from '../../db/schema.js';
+import { auditLog } from './schema.js';
 
 // The actions written so far. Modules add theirs here, so the list of
 // everything the log can contain is in one place.

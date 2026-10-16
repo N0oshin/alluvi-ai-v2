@@ -1,4 +1,4 @@
-// Factories for the infrastructure tables (src/db/schema/infrastructure.ts).
+// Factories for the infrastructure tables (src/shared/infrastructure/schema.ts).
 
 import { createHash } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';

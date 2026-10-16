@@ -31,7 +31,7 @@ export interface RateLimitRule {
   keyOf: (request: FastifyRequest) => string | undefined;
 }
 
-// The storage behind the hook. src/db/rate-limit-store.ts counts in the
+// The storage behind the hook. src/shared/infrastructure/rate-limit.ts counts in the
 // rate_limit_counters table; memoryRateLimitStore() below is the fake for tests.
 export interface RateLimitStore {
   // Adds one to the counter for `key` in the window that starts at

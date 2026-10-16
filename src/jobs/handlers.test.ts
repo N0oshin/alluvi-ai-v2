@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { memoryOutboxStore } from '../../db/outbox.js';
-import type { JobContext } from '../queue.js';
-import { outboxPublish, type OutboxConsumer } from './outbox.js';
+import { memoryOutboxStore } from '../shared/infrastructure/outbox.js';
+import type { JobContext } from './queue.js';
+import { outboxPublish, type OutboxConsumer } from './handlers.js';
 
 function context(aborted = false): JobContext {
   const controller = new AbortController();

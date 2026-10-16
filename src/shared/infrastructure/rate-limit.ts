@@ -1,4 +1,4 @@
-// The RateLimitStore (src/http/rate-limit.ts) on the rate_limit_counters table.
+// The RateLimitStore (src/shared/http/rate-limit.ts) on the rate_limit_counters table.
 //
 // One statement does the whole job: insert the counter at 1, or if that
 // (key, window_start) row already exists, add 1 to it, and return the new
@@ -6,8 +6,8 @@
 // the same instant get 1 and 2, never both 1. See docs/backend-notes.md entry 30.
 
 import { lt, sql } from 'drizzle-orm';
-import type { RateLimitStore } from '../shared/http/rate-limit.js';
-import type { Database } from './idempotency-store.js';
+import type { RateLimitStore } from '../http/rate-limit.js';
+import type { Database } from '../../db/index.js';
 import { rateLimitCounters } from './schema.js';
 
 export function createRateLimitStore(db: Database): RateLimitStore {

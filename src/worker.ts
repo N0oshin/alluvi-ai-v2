@@ -5,13 +5,13 @@
 
 import pino from 'pino';
 import { config } from './config/index.js';
-import { createIdempotencyStore } from './db/idempotency-store.js';
+import { createIdempotencyStore } from './shared/infrastructure/idempotency.js';
 import { db, pool } from './db/index.js';
-import { createOutboxStore } from './db/outbox.js';
-import { createRateLimitStore } from './db/rate-limit-store.js';
+import { createOutboxStore } from './shared/infrastructure/outbox.js';
+import { createRateLimitStore } from './shared/infrastructure/rate-limit.js';
 import { jobs } from './jobs/definitions.js';
-import { buildHandlers } from './jobs/handlers/index.js';
-import type { OutboxConsumers } from './jobs/handlers/outbox.js';
+import { buildHandlers } from './jobs/handlers.js';
+import type { OutboxConsumers } from './jobs/handlers.js';
 import { createPgBoss } from './jobs/runner.js';
 import { schedules } from './jobs/schedules.js';
 import { buildProviders } from './providers/index.js';

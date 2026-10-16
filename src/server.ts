@@ -5,9 +5,9 @@
 import pino from 'pino';
 import { config } from './config/index.js';
 import { buildApp } from './app.js';
-import { createIdempotencyStore } from './db/idempotency-store.js';
+import { createIdempotencyStore } from './shared/infrastructure/idempotency.js';
 import { checkDatabase, db, pool } from './db/index.js';
-import { createRateLimitStore } from './db/rate-limit-store.js';
+import { createRateLimitStore } from './shared/infrastructure/rate-limit.js';
 import { jobs } from './jobs/definitions.js';
 import { createPgBoss } from './jobs/runner.js';
 import { buildProviders } from './providers/index.js';

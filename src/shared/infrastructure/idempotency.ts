@@ -1,4 +1,4 @@
-// The IdempotencyStore (src/http/idempotency.ts) on the idempotency_keys table.
+// The IdempotencyStore (src/shared/http/idempotency.ts) on the idempotency_keys table.
 //
 // The unique index on (subject_id, key) does the hard part: when two requests
 // with the same key arrive at once, both try to insert, exactly one succeeds,
@@ -6,19 +6,13 @@
 // failing. See docs/backend-notes.md entry 25.
 
 import { and, eq, lte } from 'drizzle-orm';
-import type { NodePgDatabase, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import {
   IDEMPOTENCY_TTL_MS,
   type IdempotencyRecord,
   type IdempotencyStore,
-} from '../shared/http/idempotency.js';
+} from '../http/idempotency.js';
 import { idempotencyKeys } from './schema.js';
-import type * as schema from './schema.js';
-
-export type Database = NodePgDatabase<typeof schema>;
-
-export type Executor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
+import type { Database } from '../../db/index.js';
 
 export function createIdempotencyStore(
   db: Database,

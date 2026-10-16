@@ -9,12 +9,12 @@
 //     await addOutboxEvent(tx, { eventType: 'meal.changed', aggregateType: 'meal', aggregateId, payload: { userId, localDate } });
 //   });
 //
-// Reading: the 'outbox.publish' job (src/jobs/handlers/outbox.ts) takes the
+// Reading: the 'outbox.publish' job (src/jobs/handlers.ts) takes the
 // pending rows in id order (UUID v7, so creation order), hands each to its
 // consumers, and marks it published or records the failure.
 
 import { asc, eq, isNull, sql, type InferInsertModel, type InferSelectModel } from 'drizzle-orm';
-import type { Database } from './idempotency-store.js';
+import type { Database } from '../../db/index.js';
 import { outbox } from './schema.js';
 
 export type OutboxEvent = InferSelectModel<typeof outbox>;

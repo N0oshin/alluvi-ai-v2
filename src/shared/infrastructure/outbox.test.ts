@@ -5,8 +5,8 @@ import {
   migrateTestDatabase,
   testDb,
   truncateAll,
-} from '../../test/db.js';
-import { factories } from '../../test/factories/index.js';
+} from '../../../test/db.js';
+import { factories } from '../../../test/factories/index.js';
 import { addOutboxEvent, createOutboxStore } from './outbox.js';
 import { outbox } from './schema.js';
 

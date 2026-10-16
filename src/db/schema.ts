@@ -8,7 +8,7 @@
 // here when its tables are created.
 
 export * from '../shared/schema.js';
-export * from './schema/infrastructure.js';
+export * from '../shared/infrastructure/schema.js';
 export * from '../modules/identity/schema.js';
 export * from '../modules/email/schema.js';
 export * from '../modules/onboarding/schema.js';

@@ -22,15 +22,18 @@ src/
                       rate limiting, pagination, logging, request id, time zone
     auth/             access, refresh, guest and identity tokens; signing keys
     schema.ts         enums and column helpers used by more than one module
-    infrastructure/   idempotency keys, rate limit counters, outbox (schema + queries)
-  providers/          external services (email, push, storage, vision), each
-                      with a real and a fake implementation chosen by config
+    infrastructure/   idempotency keys, rate limit counters, outbox, audit log
+                      (schema.ts plus one file per table)
+  providers/          external services (email, push, storage, vision, Apple and
+                      Google token verification), each with a real and a fake
+                      implementation chosen by config
   jobs/
     queue.ts          the JobQueue type and the in-memory queue for tests
     runner.ts         pg-boss wiring
     definitions.ts    every job name and its payload type
     schedules.ts      cron schedules
-    handlers.ts       assembles every module's jobs.ts into one handler map
+    handlers.ts       the two infrastructure jobs, and the map that assembles
+                      every module's jobs.ts for the runner
   modules/
     <name>/           one folder per bounded context, see below
 test/

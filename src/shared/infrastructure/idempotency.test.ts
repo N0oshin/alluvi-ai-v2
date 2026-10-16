@@ -6,9 +6,9 @@ import {
   migrateTestDatabase,
   testDb,
   truncateAll,
-} from '../../test/db.js';
-import { factories } from '../../test/factories/index.js';
-import { createIdempotencyStore } from './idempotency-store.js';
+} from '../../../test/db.js';
+import { factories } from '../../../test/factories/index.js';
+import { createIdempotencyStore } from './idempotency.js';
 import { idempotencyKeys } from './schema.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
