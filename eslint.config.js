@@ -46,7 +46,7 @@ export default tseslint.config(
           patterns: [
             {
               // "../<module>/<anything but index.js or schema.js>"; ../../ is not a module.
-              regex: '^../(?!..)[^/]+/(?!index.js$|schema.js$).+',
+              regex: '^[.][.]/(?![.][.])[^/]+/(?!index[.]js$|schema[.]js$).+',
               message:
                 'Import another module through its index.ts (schema.ts only for foreign keys). See CONVENTIONS.md.',
             },
